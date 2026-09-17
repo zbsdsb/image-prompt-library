@@ -89,6 +89,39 @@ def test_grok_title_suggestion_uses_responses_api_and_normalizes(tmp_path):
     assert title == "霓虹雨夜圖書館"
 
 
+def test_grok_rewrite_prompt_uses_responses_api_and_strips_markdown(tmp_path):
+    from backend.services.xai_grok_oauth import GrokOAuthAuthStore, XaiGrokOAuthProvider
+
+    library = tmp_path / "library"
+    store = GrokOAuthAuthStore()
+    store.save_tokens({"access_token": "access-secret", "refresh_token": "refresh-secret", "expires_in": 3600})
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content)
+        assert request.url == "https://api.x.ai/v1/responses"
+        assert payload["model"] == "grok-4.6"
+        assert payload["store"] is False
+        assert payload["max_output_tokens"] == 2048
+        assert payload["input"][1]["content"].startswith("Original prompt:\n雨夜中的霓虹圖書館")
+        assert "保持電影感" in payload["input"][1]["content"]
+        return httpx.Response(200, json={
+            "output": [{"content": [{"type": "output_text", "text": "```\n成人角色的電影感霓虹圖書館\n```"}]}],
+        })
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as http_client:
+        result = XaiGrokOAuthProvider(auth_store=store, http_client=http_client).rewrite_prompt(
+            library,
+            "雨夜中的霓虹圖書館",
+            custom_instruction="保持電影感",
+        )
+
+    assert result == {
+        "original_prompt": "雨夜中的霓虹圖書館",
+        "rewritten_prompt": "成人角色的電影感霓虹圖書館",
+        "provider": "xai_grok_oauth",
+    }
+
+
 def test_grok_title_suggestion_rejects_unsafe_credential_boundary_before_auth_read(tmp_path, monkeypatch):
     from backend.services.xai_grok_oauth import GrokOAuthError, XaiGrokOAuthProvider
 
@@ -143,6 +176,38 @@ def test_grok_title_suggestion_api_routes_provider_and_returns_provenance(tmp_pa
     assert response.status_code == 200
     assert response.json() == {"title": "Quiet Observatory", "provider": "xai_grok_oauth"}
     assert captured == {"library_path": tmp_path / "library", "prompt_text": "A quiet observatory"}
+
+
+def test_grok_rewrite_api_routes_provider_and_returns_original_prompt(tmp_path, monkeypatch):
+    from backend.services.xai_grok_oauth import XaiGrokOAuthProvider
+
+    captured = {}
+
+    def rewrite_prompt(self, library_path, prompt_text, custom_instruction=None):
+        captured.update(library_path=library_path, prompt_text=prompt_text, custom_instruction=custom_instruction)
+        return {
+            "original_prompt": prompt_text,
+            "rewritten_prompt": "A staged adult portrait in cinematic light",
+            "provider": "xai_grok_oauth",
+        }
+
+    monkeypatch.setattr(XaiGrokOAuthProvider, "rewrite_prompt", rewrite_prompt)
+    response = TestClient(create_app(library_path=tmp_path / "library")).post(
+        "/api/generation-providers/xai_grok_oauth/rewrite-prompt",
+        json={"prompt_text": "A portrait", "custom_instruction": "cinematic"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "original_prompt": "A portrait",
+        "rewritten_prompt": "A staged adult portrait in cinematic light",
+        "provider": "xai_grok_oauth",
+    }
+    assert captured == {
+        "library_path": tmp_path / "library",
+        "prompt_text": "A portrait",
+        "custom_instruction": "cinematic",
+    }
 
 
 @pytest.mark.parametrize(("error_type", "status_code", "retry_after"), [

@@ -42,6 +42,20 @@ image-prompt-library start
 
 Keep the terminal open and visit [http://127.0.0.1:8000](http://127.0.0.1:8000). Press `Ctrl-C` in that terminal to stop the server.
 
+### Docker and GHCR
+
+The repository includes a multi-stage Docker build. The frontend is compiled in a Node stage and the FastAPI app runs from a small Python runtime image. Persistent library data and OAuth state live in separate Docker volumes:
+
+```bash
+docker network create zbs_shared 2>/dev/null || true
+docker compose up -d --build
+open http://127.0.0.1:18000
+```
+
+The default Compose mapping binds only to `127.0.0.1:18000`; put an authenticated reverse proxy or Cloudflare Access in front of it before exposing the app beyond the host. For a public hostname, set `IMAGE_PROMPT_LIBRARY_ALLOWED_HOSTS` in the environment, for example `prompt.example.com,localhost,127.0.0.1`. The application has no built-in user login.
+
+The `Publish Docker image` workflow publishes `linux/amd64` and `linux/arm64` images to `ghcr.io/zbsdsb/image-prompt-library` on `main` and `v*` tags. To use a published image instead of building locally, replace the Compose `build` block with the desired GHCR tag and run `docker compose pull && docker compose up -d`.
+
 For an inspect-before-running installation, updates, rollback, or uninstall, see the [installation guide](docs/INSTALLATION.md). If the app does not start, run `image-prompt-library status` and `image-prompt-library doctor`, then check [Troubleshooting](docs/TROUBLESHOOTING.md).
 
 ### Save your first prompt

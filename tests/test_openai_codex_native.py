@@ -1768,3 +1768,109 @@ def test_title_suggestion_api_returns_sanitized_errors(tmp_path, monkeypatch, er
     assert response.status_code == status_code
     assert "refresh-secret" not in response.text
     assert response.headers.get("Retry-After") == retry_after
+
+
+def test_codex_image_tool_surfaces_provider_refusal_instead_of_empty_result(tmp_path, monkeypatch):
+    """A moderation refusal must reach the user as an explicit policy message."""
+    from backend.services import openai_codex_native
+    from backend.services.openai_codex_native import (
+        CodexNativeAuthError,
+        CodexNativeAuthStore,
+        OpenAICodexNativeProvider,
+    )
+
+    auth_store = CodexNativeAuthStore(tmp_path / "auth.json")
+    auth_store.save_tokens({"access_token": fake_jwt(), "refresh_token": "refresh"})
+
+    class FakeResponse:
+        status_code = 200
+        headers = {}
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            return False
+
+        def iter_lines(self):
+            # OpenAI answers a blocked prompt with text instead of an image.
+            yield "data: " + json.dumps({
+                "type": "response.output_text.delta",
+                "delta": "I'm sorry, but I couldn't generate that image.",
+            })
+            yield "data: " + json.dumps({
+                "type": "response.output_item.done",
+                "item": {"type": "message", "content": [{"type": "output_text", "text": "I'm sorry, but I couldn't generate that image."}]},
+            })
+            yield "data: [DONE]"
+
+    class FakeClient:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            return False
+
+        def stream(self, *_args, **_kwargs):
+            return FakeResponse()
+
+    monkeypatch.setattr(openai_codex_native.httpx, "Client", lambda *args, **kwargs: FakeClient())
+    with pytest.raises(CodexNativeAuthError, match="content moderation blocked"):
+        OpenAICodexNativeProvider(auth_store=auth_store)._collect_image_b64(
+            "A blocked prompt",
+            size=None,
+            quality="high",
+            image_model="gpt-image-2",
+            orchestrator_model="gpt-5.6-luna",
+        )
+
+
+def test_codex_rewrite_prompt_returns_rewritten_text(tmp_path, monkeypatch):
+    from backend.services import openai_codex_native
+    from backend.services.openai_codex_native import CodexNativeAuthStore, OpenAICodexNativeProvider
+
+    monkeypatch.setenv("IMAGE_PROMPT_LIBRARY_AUTH_PATH", str(tmp_path / "auth.json"))
+    monkeypatch.setenv("IMAGE_PROMPT_LIBRARY_CONFIG_PATH", str(tmp_path / "config.json"))
+    auth_store = CodexNativeAuthStore(tmp_path / "auth.json")
+    auth_store.save_tokens({"access_token": fake_jwt(), "refresh_token": "refresh"})
+    captured = {}
+
+    class FakeResponse:
+        status_code = 200
+        headers = {}
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            return False
+
+        def iter_lines(self):
+            yield "data: " + json.dumps({"type": "response.output_text.delta", "delta": "```\n"})
+            yield "data: " + json.dumps({"type": "response.output_text.delta", "delta": "A staged respectful portrait"})
+            yield "data: " + json.dumps({"type": "response.output_text.delta", "delta": "\n```"})
+            yield "data: [DONE]"
+
+    class FakeClient:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            return False
+
+        def stream(self, method, url, **kwargs):
+            captured.update(kwargs)
+            return FakeResponse()
+
+    monkeypatch.setattr(openai_codex_native.httpx, "Client", lambda *args, **kwargs: FakeClient())
+    result = OpenAICodexNativeProvider(auth_store=auth_store).rewrite_prompt(
+        tmp_path / "library",
+        "A voyeuristic blocked prompt",
+        custom_instruction="keep the cyberpunk mood",
+    )
+    assert result["rewritten_prompt"] == "A staged respectful portrait"
+    assert result["original_prompt"] == "A voyeuristic blocked prompt"
+    assert result["provider"] == "openai_codex_oauth_native"
+    body = json.dumps(captured["json"])
+    assert "keep the cyberpunk mood" in body
+    assert "stream" in captured["json"] and captured["json"]["stream"] is True

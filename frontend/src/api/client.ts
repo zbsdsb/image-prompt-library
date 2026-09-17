@@ -1,4 +1,4 @@
-import type { AppConfig, AppUpdateRequest, AppUpdateResult, AppUpdateStatus, CleanupApplyRequest, CleanupApplyResult, CleanupPreview, ClusterRecord, CodexNativeAuthPollRequest, CodexNativeAuthPollResponse, CodexNativeAuthStart, GenerationJobAcceptAsNewItemPayload, GenerationJobAcceptResult, GenerationJobCreate, GenerationJobList, GenerationJobRecord, GenerationJobRetryResult, GenerationJobSetCreate, GenerationJobSetRecord, GenerationProviderStatus, GrokOAuthPollRequest, ItemBatchRequest, ItemBatchResult, ItemCreate, ItemDetail, ItemImageUpdate, ItemList, ItemSortMode, ItemSummary, ProviderDeviceAuthStart, TagRecord, TitleSuggestionProvider, TitleSuggestionRequest, TitleSuggestionResponse, UploadImageRole } from '../types';
+import type { AppConfig, AppUpdateRequest, AppUpdateResult, AppUpdateStatus, CleanupApplyRequest, CleanupApplyResult, CleanupPreview, ClusterRecord, CodexNativeAuthPollRequest, CodexNativeAuthPollResponse, CodexNativeAuthStart, DiscardFailedJobsResult, GenerationJobAcceptAsNewItemPayload, GenerationJobAcceptResult, GenerationJobCreate, GenerationJobList, GenerationJobRecord, GenerationJobRetryResult, GenerationJobSetCreate, GenerationJobSetRecord, GenerationProviderStatus, GrokOAuthPollRequest, ItemBatchRequest, ItemBatchResult, ItemCreate, ItemDetail, ItemImageUpdate, ItemList, ItemSortMode, ItemSummary, PromptRewriteRequest, PromptRewriteResponse, ProviderDeviceAuthStart, TagRecord, TitleSuggestionProvider, TitleSuggestionRequest, TitleSuggestionResponse, UploadImageRole } from '../types';
 import { DEFAULT_ITEM_SORT } from '../utils/searchSort';
 
 const API = '';
@@ -141,6 +141,25 @@ async function suggestTitleRequest(provider: TitleSuggestionProvider, payload: T
   return response.json();
 }
 
+async function rewritePromptRequest(provider: TitleSuggestionProvider, payload: PromptRewriteRequest): Promise<PromptRewriteResponse> {
+  const response = await fetch(`${API}/api/generation-providers/${encodeURIComponent(provider)}/rewrite-prompt`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    let message = '';
+    try {
+      const body = await response.json() as { detail?: unknown };
+      if (typeof body.detail === 'string') message = body.detail;
+    } catch {
+      message = '';
+    }
+    throw new TitleSuggestionRequestError(response.status, message || 'Prompt rewrite failed.');
+  }
+  return response.json();
+}
+
 export const mediaUrl = (path?: string) => {
   if (!path) return '';
   if (isDemoMode && path.startsWith('demo-data/')) return demoUrl(path);
@@ -221,6 +240,8 @@ export const api = isDemoMode ? {
   grokOAuthAuthPoll: (_payload: GrokOAuthPollRequest) => demoReadOnly(),
   grokOAuthAuthDisconnect: () => demoReadOnly(),
   suggestTitle: (_provider: TitleSuggestionProvider, _payload: TitleSuggestionRequest) => demoReadOnly(),
+  rewritePrompt: (_provider: TitleSuggestionProvider, _payload: PromptRewriteRequest) => demoReadOnly(),
+  discardAllFailedGenerationJobs: () => demoReadOnly(),
   generationJobs: () => Promise.resolve<GenerationJobList>({
     jobs: [],
     total: 0,
@@ -271,6 +292,7 @@ export const api = isDemoMode ? {
   grokOAuthAuthPoll: (payload: GrokOAuthPollRequest) => json<CodexNativeAuthPollResponse>('/api/generation-providers/xai-grok-oauth/auth/poll', { method: 'POST', body: JSON.stringify(payload) }),
   grokOAuthAuthDisconnect: () => json<GenerationProviderStatus>('/api/generation-providers/xai-grok-oauth/auth/disconnect', { method: 'POST' }),
   suggestTitle: suggestTitleRequest,
+  rewritePrompt: rewritePromptRequest,
   generationJobs: (params: Record<string, string | number | boolean | undefined> = {}) => { const qs = new URLSearchParams(); Object.entries(params).forEach(([k,v]) => { if (v !== undefined && v !== '') qs.set(k, String(v)); }); return json<GenerationJobList>(`/api/generation-jobs?${qs}`); },
   generationJob: (id: string) => json<GenerationJobRecord>(`/api/generation-jobs/${id}`),
   createGenerationJob: (payload: GenerationJobCreate) => json<GenerationJobRecord>('/api/generation-jobs', { method: 'POST', body: JSON.stringify(payload) }),
@@ -286,6 +308,7 @@ export const api = isDemoMode ? {
   retryGenerationJob: (id: string) => json<GenerationJobRecord>(`/api/generation-jobs/${id}/retry`, { method: 'POST' }),
   markGenerationJobFailed: (id: string) => json<GenerationJobRecord>(`/api/generation-jobs/${id}/mark-failed`, { method: 'POST' }),
   discardGenerationJob: (id: string) => json<GenerationJobRecord>(`/api/generation-jobs/${id}/discard`, { method: 'POST' }),
+  discardAllFailedGenerationJobs: () => json<DiscardFailedJobsResult>('/api/generation-jobs/discard-failed', { method: 'POST' }),
   discardAndRetryGenerationJob: (id: string) => json<GenerationJobRetryResult>(`/api/generation-jobs/${id}/discard-and-retry`, { method: 'POST' }),
   clusters: () => json<ClusterRecord[]>('/api/clusters'),
   tags: () => json<TagRecord[]>('/api/tags'),

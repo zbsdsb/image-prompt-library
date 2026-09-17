@@ -229,6 +229,10 @@ function canRetryFailedJob(job: GenerationJobRecord) {
   return job.status === 'failed' && !retriedByJobId(job);
 }
 
+function canDiscardFailedJob(job: GenerationJobRecord) {
+  return Boolean(job.status === 'failed' && !job.accepted_image_id && !job.result_path && !retriedByJobId(job));
+}
+
 function canDiscardTransientResult(job: GenerationJobRecord) {
   return Boolean(job.status === 'succeeded' && !job.accepted_image_id && job.result_path && job.result_path?.startsWith(`generation-results/${job.id}/`));
 }
@@ -508,6 +512,25 @@ export default function GenerationQueueDrawer({
     }
   };
 
+  const discardFailedJob = async (job: GenerationJobRecord) => {
+    if (!canDiscardFailedJob(job) || discardBusyIds.has(job.id)) return;
+    setDiscardBusyIds(current => new Set(current).add(job.id));
+    try {
+      const updated = await api.discardGenerationJob(job.id);
+      setJobs(current => current.map(candidate => candidate.id === updated.id ? updated : candidate));
+      setLoadError('');
+      void refresh();
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : t('queueDiscardFailed'));
+    } finally {
+      setDiscardBusyIds(current => {
+        const next = new Set(current);
+        next.delete(job.id);
+        return next;
+      });
+    }
+  };
+
   const cancelRemainingGenerationSet = async (set: GenerationJobSetRecord) => {
     if (!set.remaining || cancelSetBusyIds.has(set.generation_group_id)) return;
     setCancelSetBusyIds(current => new Set(current).add(set.generation_group_id));
@@ -612,6 +635,14 @@ export default function GenerationQueueDrawer({
           )}
           {retryId && (
             <button type="button" className="secondary" onClick={() => onOpenJob(retry || job)}>{t('queueOpenRetryJob')}</button>
+          )}
+          {canDiscardFailedJob(job) && (
+            <button
+              type="button"
+              className="secondary danger"
+              onClick={() => discardFailedJob(job).catch(() => undefined)}
+              disabled={discardBusyIds.has(job.id)}
+            >{discardBusyIds.has(job.id) ? t('discardFailedJobBusy') : t('discardFailedJob')}</button>
           )}
         </div>
       </article>

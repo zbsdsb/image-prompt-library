@@ -166,6 +166,12 @@ def cancel_remaining_generation_job_set(generation_group_id: str, request: Reque
         raise HTTPException(status_code=404) from exc
 
 
+@router.post("/discard-failed")
+def discard_all_failed_generation_jobs(request: Request):
+    """Close every failed job that has no result file and clear the error badge."""
+    return {"discarded": repo(request).discard_all_failed_jobs()}
+
+
 @router.get("/{job_id}", response_model=GenerationJobRecord)
 def get_generation_job(job_id: str, request: Request):
     try:

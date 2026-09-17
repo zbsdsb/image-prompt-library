@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowLeft, Check, ChevronDown, ChevronLeft, ChevronRight, Clipboard, Clock3, Download, FilePlus2, Images, Info, Maximize2, Paperclip, Plus, RotateCcw, Trash2, Upload, X } from 'lucide-react';
+import { ArrowLeft, Check, ChevronDown, ChevronLeft, ChevronRight, Clipboard, Clock3, Download, FilePlus2, Images, Info, Maximize2, Paperclip, Plus, RotateCcw, Sparkles, Trash2, Upload, X } from 'lucide-react';
 import aspectRatioIcon from '../assets/generation-controls/aspect-ratio.png';
 import brainAiIcon from '../assets/generation-controls/model.png';
 import qualityIcon from '../assets/generation-controls/quality.png';
@@ -15,6 +15,7 @@ import { extractPromptTemplateVariableRecords, resolvePromptTemplate } from '../
 import { createGenerationReviewSession, generationResultPosition, generationReviewNext, generationReviewOpenContext, generationReviewSlotNavigation, generationReviewSummary, generationSiblingNavigation, isActionableGenerationResult, mapGenerationRetryJobs, mapGenerationRetryToReviewSlot, reconcileGenerationReviewSession, resolveGenerationReviewSlot, retainPendingRetryJobIds, type GenerationReviewSession } from '../utils/generationSiblings';
 import { useModalFocus } from '../hooks/useModalFocus';
 import SuggestedTitleField from './SuggestedTitleField';
+import { PromptRewriteDialog } from './PromptRewriteDialog';
 
 function providerReady(provider: GenerationProviderStatus) {
   return Boolean(provider.available && provider.authenticated && provider.configured);
@@ -202,6 +203,14 @@ function canRetryFailedJob(job?: GenerationJobRecord) {
   return job?.status === 'failed' && !retriedByJobId(job);
 }
 
+// Failed, cancelled and still-queued jobs never produced a result file, so they can
+// always be closed out. Retried jobs keep their retry pointer, so leave those alone.
+function canDiscardFailedJob(job?: GenerationJobRecord) {
+  if (!job) return false;
+  if (job.accepted_image_id || job.result_path) return false;
+  return job.status === 'failed' && !retriedByJobId(job);
+}
+
 function isStaleRunningJob(job?: GenerationJobRecord) {
   if (job?.status !== 'running') return false;
   const started = Date.parse(job.started_at || job.updated_at || job.created_at);
@@ -337,6 +346,7 @@ export default function GenerationPanel({
   const [recentJobs, setRecentJobs] = useState<GenerationJobRecord[]>([]);
   const [pickerBusy, setPickerBusy] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [discardingJobIds, setDiscardingJobIds] = useState<Set<string>>(() => new Set());
   const [message, setMessage] = useState('');
   const [activeJobId, setActiveJobId] = useState<string | undefined>(initialJobId);
   const [focusedJobHighlightId, setFocusedJobHighlightId] = useState<string | undefined>(initialJobId);
@@ -384,6 +394,7 @@ export default function GenerationPanel({
   const saveAsNewTriggerRef = useRef<HTMLButtonElement | null>(null);
   const attachmentInputRef = useRef<HTMLInputElement | null>(null);
   const promptInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const [showPromptRewrite, setShowPromptRewrite] = useState(false);
   const initialFocusAppliedRef = useRef(false);
   const jobsRequestRef = useRef(0);
   const generationSetRequestRef = useRef(0);
@@ -1609,6 +1620,24 @@ export default function GenerationPanel({
     }
   };
 
+  const discardFailedJob = async (job: GenerationJobRecord) => {
+    setDiscardingJobIds(current => new Set(current).add(job.id));
+    try {
+      const discarded = await api.discardGenerationJob(job.id);
+      invalidateGenerationRefreshRequests();
+      await refreshJobs({ preserveActive: true });
+      if (discarded.status === 'discarded') setMessage(t('discardFailedJobDone'));
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : t('discardFailedJobError'));
+    } finally {
+      setDiscardingJobIds(current => {
+        const next = new Set(current);
+        next.delete(job.id);
+        return next;
+      });
+    }
+  };
+
   const retryFailedJob = async (job: GenerationJobRecord) => {
     const reviewSession = ensureBatchReviewSession(job);
     if (!canRetryFailedJob(job)) {
@@ -1987,6 +2016,15 @@ export default function GenerationPanel({
                 )}
                 {retryButton}
                 {failure.kind === 'unknown' && editPromptButton}
+                {canDiscardFailedJob(selectedStageJob) && (
+                  <button
+                    className="stage-action danger"
+                    onClick={() => { discardFailedJob(selectedStageJob).catch(() => undefined); }}
+                    disabled={busy || discardingJobIds.has(selectedStageJob.id)}
+                  >
+                    {discardingJobIds.has(selectedStageJob.id) ? t('discardFailedJobBusy') : t('discardFailedJob')}
+                  </button>
+                )}
               </>
             )}
           </div>
@@ -2058,6 +2096,9 @@ export default function GenerationPanel({
             {!isHistoryReview ? (
               <>
                 <div className="generation-prompt-area">
+                  <button type="button" className="generation-prompt-rewrite" onClick={() => setShowPromptRewrite(true)} title={t('rewritePromptTitle')}>
+                    <Sparkles size={13} strokeWidth={2.4} aria-hidden="true" />{t('rewritePrompt')}
+                  </button>
                       <textarea ref={promptInputRef} data-modal-initial-focus value={promptText} onChange={event => setPromptText(event.currentTarget.value)} placeholder={t('promptPlaceholder')} aria-label={t('generationPrompt')} />
                   {renderReferenceTray(editAttachments)}
                 </div>
@@ -2492,6 +2533,15 @@ export default function GenerationPanel({
           </section>
         )}
         {message && !selectedStageJob && <p className="provider-message generation-toast">{message}</p>}
+        {showPromptRewrite && createPortal((
+          <PromptRewriteDialog
+            providers={providers}
+            initialPrompt={promptText}
+            t={t}
+            onApply={rewritten => { setPromptText(rewritten); setMessage(t('rewritePromptApplySuccess')); }}
+            onClose={() => setShowPromptRewrite(false)}
+          />
+        ), document.body)}
       </section>
     </div>
   );

@@ -1905,6 +1905,31 @@ class GenerationJobRepository:
         job = self._clear_stale_acceptance_claim(job_id)
         if job.status == "accepted" or job.accepted_image_id:
             raise GenerationJobConflict("Accepted generation jobs cannot be discarded")
+        if not job.result_path and job.status in {"failed", "cancelled", "queued"}:
+            # Failed, cancelled and still-queued jobs never produced a transient
+            # result file, so closing them out is a pure status transition. Without
+            # this branch such dead jobs could never leave the "needs attention"
+            # queue, which left a permanent error badge in the UI.
+            timestamp = now()
+            with connect(self.library_path) as conn:
+                conn.execute("BEGIN IMMEDIATE")
+                cursor = conn.execute(
+                    """
+                    UPDATE generation_jobs
+                    SET status='discarded', discarded_at=?, updated_at=?
+                    WHERE id=? AND status=? AND result_path IS NULL AND accepted_image_id IS NULL
+                    """,
+                    (timestamp, timestamp, job_id, job.status),
+                )
+                conn.commit()
+            if cursor.rowcount == 1:
+                return self.get_job(job_id)
+            current = self.get_job(job_id)
+            if current.status == "discarded":
+                return current
+            raise GenerationJobConflict(
+                f"Only failed, cancelled or queued generation jobs without a result can be discarded; current status is {current.status}"
+            )
         if not self._result_path_is_discardable(job):
             raise GenerationJobConflict("Only transient generation results in a safe path can be discarded")
         if self._result_path_has_item_image_references(job.result_path or ""):
@@ -1957,6 +1982,27 @@ class GenerationJobRepository:
         self._remove_discarded_result_file(result_abs)
         self._mark_discard_repair_complete(job_id, job.result_path or "")
         return self.get_job(job_id)
+
+    def discard_all_failed_jobs(self) -> int:
+        """Close out every failed job that has no result file.
+
+        The UI's "needs attention" badge counts failed jobs, and the per-job
+        discard path refuses to act when there is no result path. This bulk helper
+        lets the user clear the whole backlog in one action.
+        """
+        timestamp = now()
+        with connect(self.library_path) as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            cursor = conn.execute(
+                """
+                UPDATE generation_jobs
+                SET status='discarded', discarded_at=?, updated_at=?
+                WHERE status='failed' AND result_path IS NULL AND accepted_image_id IS NULL
+                """,
+                (timestamp, timestamp),
+            )
+            conn.commit()
+        return int(cursor.rowcount or 0)
 
     def retry_failed_job(self, job_id: str) -> GenerationJobRecord:
         retry_id = new_id("gen")
