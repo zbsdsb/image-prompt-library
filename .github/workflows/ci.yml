@@ -18,6 +18,16 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
+      - name: Fetch historical v0.8.0 rollback baseline
+        env:
+          BASELINE_REPOSITORY: https://github.com/EddieTYP/image-prompt-library.git
+          BASELINE_TAG: v0.8.0
+          BASELINE_SHA: 527d1486fbb929c951952ff4b770d092171e6a5c
+        run: |
+          if ! git rev-parse --verify "refs/tags/$BASELINE_TAG^{commit}" >/dev/null 2>&1; then
+            git fetch --no-tags "$BASELINE_REPOSITORY" "refs/tags/$BASELINE_TAG:refs/tags/$BASELINE_TAG"
+          fi
+          test "$(git rev-parse "refs/tags/$BASELINE_TAG^{commit}")" = "$BASELINE_SHA"
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
