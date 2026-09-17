@@ -1,0 +1,25 @@
+services:
+  image-prompt-library:
+    build:
+      context: .
+    image: ghcr.io/zbsdsb/image-prompt-library:local
+    container_name: image-prompt-library
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${IMAGE_PROMPT_LIBRARY_PORT:-18000}:8000"
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+      IMAGE_PROMPT_LIBRARY_ALLOWED_HOSTS: ${IMAGE_PROMPT_LIBRARY_ALLOWED_HOSTS:-localhost,127.0.0.1}
+    volumes:
+      - image_prompt_library_data:/data/library
+      - image_prompt_library_state:/data/state
+    networks:
+      - zbs_shared
+
+volumes:
+  image_prompt_library_data:
+  image_prompt_library_state:
+
+networks:
+  zbs_shared:
+    external: true

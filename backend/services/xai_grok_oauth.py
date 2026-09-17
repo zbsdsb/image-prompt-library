@@ -4,6 +4,7 @@ import base64
 import binascii
 import json
 import os
+import re
 import tempfile
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
@@ -702,3 +703,97 @@ class XaiGrokOAuthProvider:
         except OSError as exc:
             raise GrokOAuthError("Grok image generation returned invalid image data") from exc
         return f"xai-grok-imagine{suffix}"
+
+    def rewrite_prompt(
+        self,
+        library_path: Path | str,
+        prompt_text: str,
+        custom_instruction: str | None = None,
+    ) -> dict[str, str]:
+        """Rewrite an image prompt for quality/safety using the connected Grok OAuth session."""
+        try:
+            validate_app_owned_paths(library_path)
+        except ValueError as exc:
+            raise GrokOAuthError(
+                "Provider credentials or library storage paths are unsafe. Move app-owned credentials outside the active library and restart."
+            ) from exc
+        prompt = str(prompt_text or "").strip()
+        if not prompt:
+            raise GrokOAuthError("Prompt text is required")
+        instruction = str(custom_instruction or "").strip()
+        tokens = self.auth_store.read_tokens(http_client=self.http_client)
+        payload = {
+            "model": TITLE_MODEL,
+            "store": False,
+            "reasoning": {"effort": "low"},
+            "max_output_tokens": 2048,
+            "input": [
+                {
+                    "role": "system",
+                    "content": (
+                        "You are an expert image-generation prompt engineer. Rewrite the user's prompt so it "
+                        "keeps its subject, style, composition and mood while improving photographic detail "
+                        "and safety. Keep every person explicitly an adult and fully clothed; avoid wording "
+                        "that reads as voyeuristic, non-consensual or sexualised. Fold in any additional user "
+                        "requirements naturally. Return ONLY the rewritten prompt, with no quotes, labels, "
+                        "markdown fences or commentary."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        f"Original prompt:\n{prompt}"
+                        + (f"\n\nAdditional requirements:\n{instruction}" if instruction else "")
+                    ),
+                },
+            ],
+        }
+        close_client = self.http_client is None
+        client = self.http_client or httpx.Client(timeout=httpx.Timeout(min(self.timeout, 90.0)))
+        try:
+            try:
+                response = client.post(
+                    RESPONSES_URL,
+                    headers={
+                        "Authorization": f"Bearer {tokens['access_token']}",
+                        "Accept": "application/json",
+                        "Content-Type": "application/json",
+                        "User-Agent": f"ImagePromptLibrary/{APP_VERSION}",
+                    },
+                    json=payload,
+                )
+            except httpx.HTTPError as exc:
+                raise GrokOAuthTemporaryError("Grok prompt rewrite is temporarily unavailable") from exc
+        finally:
+            if close_client:
+                client.close()
+        if response.status_code == 429:
+            raise GrokOAuthRateLimitError(
+                "Grok prompt rewrite is temporarily rate limited.",
+                retry_after_seconds=parse_retry_after_seconds(response.headers.get("Retry-After")),
+            )
+        if response.status_code in {401, 403}:
+            raise GrokOAuthRequestError("Grok prompt rewrite is unavailable for this account")
+        if response.status_code == 408 or response.status_code >= 500:
+            raise GrokOAuthTemporaryError("Grok prompt rewrite is temporarily unavailable")
+        if response.status_code != 200:
+            raise GrokOAuthRequestError(f"Grok prompt rewrite returned status {response.status_code}")
+        try:
+            response_payload = _response_json(response, "Grok prompt rewrite")
+        except GrokOAuthError as exc:
+            raise GrokOAuthRequestError("Grok prompt rewrite returned an invalid response") from exc
+        output = response_payload.get("output")
+        parts: list[str] = []
+        if isinstance(output, list):
+            for item in output:
+                if not isinstance(item, dict):
+                    continue
+                for content in item.get("content") or []:
+                    if isinstance(content, dict) and content.get("type") == "output_text":
+                        text = content.get("text")
+                        if isinstance(text, str):
+                            parts.append(text)
+        rewritten = re.sub(r"^```[A-Za-z0-9_-]*\s*\n?|\n?```\s*$", "", "".join(parts).strip(), flags=re.MULTILINE).strip().strip("`").strip()
+        if not rewritten:
+            raise GrokOAuthTemporaryError("Grok returned no rewritten prompt")
+        return {"original_prompt": prompt, "rewritten_prompt": rewritten, "provider": PROVIDER_ID}

@@ -27,6 +27,9 @@ export interface CodexNativeAuthPollRequest { device_auth_id: string; user_code:
 export interface GrokOAuthPollRequest { device_code: string }
 export interface TitleSuggestionRequest { prompt_text: string }
 export interface TitleSuggestionResponse { title: string; provider: TitleSuggestionProvider }
+export interface PromptRewriteRequest { prompt_text: string; custom_instruction?: string | null }
+export interface PromptRewriteResponse { original_prompt: string; rewritten_prompt: string; provider: TitleSuggestionProvider }
+export interface DiscardFailedJobsResult { discarded: number }
 export interface GenerationJobCreate { source_item_id?: string; mode?: string; provider: string; model?: string | null; prompt_language?: string | null; prompt_text: string; edited_prompt_text?: string | null; reference_image_ids?: string[]; parameters?: Record<string, unknown> }
 export type GenerationSetCount = 1 | 3 | 5 | 10
 export interface GenerationJobSetCreate { job: GenerationJobCreate; count: GenerationSetCount }

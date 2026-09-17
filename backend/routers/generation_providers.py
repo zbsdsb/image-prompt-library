@@ -175,3 +175,46 @@ def openai_codex_native_suggest_title(payload: TitleSuggestionRequest, request: 
 @router.post("/{provider_id}/suggest-title", response_model=TitleSuggestionResponse)
 def provider_suggest_title(provider_id: str, payload: TitleSuggestionRequest, request: Request):
     return _suggest_title(provider_id, payload, request)
+
+
+class PromptRewriteRequest(BaseModel):
+    prompt_text: str = Field(min_length=1, max_length=20_000)
+    custom_instruction: str | None = Field(default=None, max_length=2_000)
+
+
+class PromptRewriteResponse(BaseModel):
+    original_prompt: str
+    rewritten_prompt: str
+    provider: str
+
+
+def _rewrite_prompt(provider_id: str, payload: PromptRewriteRequest, request: Request) -> PromptRewriteResponse:
+    if provider_id == "openai_codex_oauth_native":
+        provider = OpenAICodexNativeProvider(timeout=90.0)
+        login_message = "Connect ChatGPT / Codex OAuth before rewriting a prompt."
+    elif provider_id == "xai_grok_oauth":
+        provider = XaiGrokOAuthProvider(timeout=90.0)
+        login_message = "Connect Grok OAuth before rewriting a prompt."
+    else:
+        raise HTTPException(status_code=404, detail="Prompt rewrite provider was not found.")
+    try:
+        result = provider.rewrite_prompt(
+            request.app.state.library_path,
+            payload.prompt_text,
+            custom_instruction=payload.custom_instruction,
+        )
+        return PromptRewriteResponse(**result)
+    except (CodexNativeRateLimitError, GrokOAuthRateLimitError) as exc:
+        headers = {"Retry-After": str(exc.retry_after_seconds)} if exc.retry_after_seconds is not None else None
+        raise HTTPException(status_code=429, detail="Prompt rewrite is temporarily rate limited.", headers=headers) from exc
+    except (CodexNativeTemporaryError, GrokOAuthTemporaryError) as exc:
+        raise HTTPException(status_code=503, detail="Prompt rewrite is temporarily unavailable.") from exc
+    except (CodexNativeRequestError, GrokOAuthRequestError) as exc:
+        raise HTTPException(status_code=502, detail="Could not rewrite the prompt.") from exc
+    except (CodexNativeAuthError, GrokOAuthError) as exc:
+        raise HTTPException(status_code=409, detail=login_message) from exc
+
+
+@router.post("/{provider_id}/rewrite-prompt", response_model=PromptRewriteResponse)
+def provider_rewrite_prompt(provider_id: str, payload: PromptRewriteRequest, request: Request):
+    return _rewrite_prompt(provider_id, payload, request)

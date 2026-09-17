@@ -42,6 +42,20 @@ image-prompt-library start
 
 保持终端打开，并浏览 [http://127.0.0.1:8000](http://127.0.0.1:8000)。在该终端按 `Ctrl-C` 可停止 server。
 
+### Docker 与 GHCR
+
+仓库已包含多阶段 Docker 构建：前端在 Node 构建阶段编译，FastAPI 在精简的 Python 运行时镜像中启动。Library 数据和 OAuth 状态分别保存在 Docker volume 中：
+
+```bash
+docker network create zbs_shared 2>/dev/null || true
+docker compose up -d --build
+open http://127.0.0.1:18000
+```
+
+Compose 默认只绑定到 `127.0.0.1:18000`；如果要从服务器外访问，必须在前面加上有鉴权的反向代理或 Cloudflare Access。使用公网域名时，请在环境中设置 `IMAGE_PROMPT_LIBRARY_ALLOWED_HOSTS`，例如 `prompt.example.com,localhost,127.0.0.1`。应用本身没有内置用户登录。
+
+`Publish Docker image` workflow 会在推送到 `main` 或 `v*` tag 时发布 `linux/amd64` 与 `linux/arm64` 镜像到 `ghcr.io/zbsdsb/image-prompt-library`。如需直接使用已发布镜像，可把 Compose 中的 `build` 块替换成目标 GHCR tag，然后执行 `docker compose pull && docker compose up -d`。
+
 如希望先查看安装程序再执行，或需要更新、回退旧版、卸载，请看[安装说明](docs/INSTALLATION.md)。启动有问题时，可先执行 `image-prompt-library status` 和 `image-prompt-library doctor`，再参考[故障排查](docs/TROUBLESHOOTING.md)。
 
 ### 保存第一个 prompt

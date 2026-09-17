@@ -3395,3 +3395,46 @@ def test_generation_job_api_filters_by_source_item_with_status_and_pagination(tm
         "discarded": 0,
         "cancelled": 0,
     }
+
+
+def test_discard_job_allows_failed_job_without_result(tmp_path):
+    """Failed jobs have no result file and previously could never be cleared."""
+    repo = GenerationJobRepository(tmp_path / "library")
+    job = repo.create_job(GenerationJobCreate(provider="manual_upload", prompt_text="blocked prompt"))
+    repo.mark_failed(job.id, "Policy violated: request was refused by safety system")
+
+    discarded = repo.discard_job(job.id)
+
+    assert discarded.status == "discarded"
+    assert repo.get_job(job.id).status == "discarded"
+
+
+def test_discard_all_failed_jobs_clears_backlog(tmp_path):
+    repo = GenerationJobRepository(tmp_path / "library")
+    first = repo.create_job(GenerationJobCreate(provider="manual_upload", prompt_text="blocked one"))
+    second = repo.create_job(GenerationJobCreate(provider="manual_upload", prompt_text="blocked two"))
+    repo.mark_failed(first.id, "Policy violated: request was refused by safety system")
+    repo.mark_failed(second.id, "429 too many requests, retry later")
+
+    assert repo.discard_all_failed_jobs() == 2
+    assert repo.get_job(first.id).status == "discarded"
+    assert repo.get_job(second.id).status == "discarded"
+    # Idempotent: nothing left to clear.
+    assert repo.discard_all_failed_jobs() == 0
+
+
+def test_discard_all_failed_jobs_endpoint_clears_status_counts(tmp_path):
+    app = client(tmp_path)
+    repo = GenerationJobRepository(tmp_path / "library")
+    job = repo.create_job(GenerationJobCreate(provider="manual_upload", prompt_text="blocked prompt"))
+    repo.mark_failed(job.id, "Policy violated: request was refused by safety system")
+
+    before = app.get("/api/generation-jobs?status=failed").json()
+    assert before["total"] == 1
+
+    response = app.post("/api/generation-jobs/discard-failed")
+    assert response.status_code == 200
+    assert response.json() == {"discarded": 1}
+
+    after = app.get("/api/generation-jobs?status=failed").json()
+    assert after["total"] == 0
