@@ -52,6 +52,8 @@ docker compose up -d --build
 open http://127.0.0.1:18000
 ```
 
+容器默认通过 `IMAGE_PROMPT_LIBRARY_STATE_PATH` 将 OAuth 和应用配置状态保存到 `/data/state`；仍然支持使用 `IMAGE_PROMPT_LIBRARY_AUTH_PATH`、`IMAGE_PROMPT_LIBRARY_GROK_AUTH_PATH` 和 `IMAGE_PROMPT_LIBRARY_CONFIG_PATH` 分别覆盖路径。
+
 Compose 默认只绑定到 `127.0.0.1:18000`；如果要从服务器外访问，必须在前面加上有鉴权的反向代理或 Cloudflare Access。使用公网域名时，请在环境中设置 `IMAGE_PROMPT_LIBRARY_ALLOWED_HOSTS`，例如 `prompt.example.com,localhost,127.0.0.1`。应用本身没有内置用户登录。
 
 `Publish Docker image` workflow 会在推送到 `main` 或 `v*` tag 时发布 `linux/amd64` 与 `linux/arm64` 镜像到 `ghcr.io/zbsdsb/image-prompt-library`。如需直接使用已发布镜像，可把 Compose 中的 `build` 块替换成目标 GHCR tag，然后执行 `docker compose pull && docker compose up -d`。

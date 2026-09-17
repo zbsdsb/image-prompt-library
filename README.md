@@ -52,6 +52,8 @@ docker compose up -d --build
 open http://127.0.0.1:18000
 ```
 
+The container defaults to `/data/state` for OAuth and app configuration state through `IMAGE_PROMPT_LIBRARY_STATE_PATH`; explicit `IMAGE_PROMPT_LIBRARY_AUTH_PATH`, `IMAGE_PROMPT_LIBRARY_GROK_AUTH_PATH`, and `IMAGE_PROMPT_LIBRARY_CONFIG_PATH` overrides remain supported.
+
 The default Compose mapping binds only to `127.0.0.1:18000`; put an authenticated reverse proxy or Cloudflare Access in front of it before exposing the app beyond the host. For a public hostname, set `IMAGE_PROMPT_LIBRARY_ALLOWED_HOSTS` in the environment, for example `prompt.example.com,localhost,127.0.0.1`. The application has no built-in user login.
 
 The `Publish Docker image` workflow publishes `linux/amd64` and `linux/arm64` images to `ghcr.io/zbsdsb/image-prompt-library` on `main` and `v*` tags. To use a published image instead of building locally, replace the Compose `build` block with the desired GHCR tag and run `docker compose pull && docker compose up -d`.

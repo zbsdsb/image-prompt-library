@@ -6,7 +6,14 @@ from typing import Any
 
 SOURCE_APP_VERSION = "0.1.0"
 DEFAULT_LIBRARY_PATH = Path(__file__).resolve().parents[1] / "library"
-DEFAULT_APP_STATE_PATH = Path.home() / ".image-prompt-library"
+
+
+def _default_app_state_path() -> Path:
+    configured = os.environ.get("IMAGE_PROMPT_LIBRARY_STATE_PATH")
+    return Path(configured).expanduser() if configured else Path.home() / ".image-prompt-library"
+
+
+DEFAULT_APP_STATE_PATH = _default_app_state_path()
 DEFAULT_AUTH_PATH = DEFAULT_APP_STATE_PATH / "auth.json"
 DEFAULT_GROK_AUTH_PATH = DEFAULT_APP_STATE_PATH / "grok-auth.json"
 DEFAULT_CONFIG_PATH = DEFAULT_APP_STATE_PATH / "config.json"
@@ -51,17 +58,17 @@ APP_VERSION = resolve_app_version()
 
 def resolve_auth_path() -> Path:
     configured = os.environ.get("IMAGE_PROMPT_LIBRARY_AUTH_PATH")
-    return Path(configured).expanduser() if configured else DEFAULT_AUTH_PATH
+    return Path(configured).expanduser() if configured else _default_app_state_path() / "auth.json"
 
 
 def resolve_grok_auth_path() -> Path:
     configured = os.environ.get("IMAGE_PROMPT_LIBRARY_GROK_AUTH_PATH")
-    return Path(configured).expanduser() if configured else DEFAULT_GROK_AUTH_PATH
+    return Path(configured).expanduser() if configured else _default_app_state_path() / "grok-auth.json"
 
 
 def resolve_config_path() -> Path:
     configured = os.environ.get("IMAGE_PROMPT_LIBRARY_CONFIG_PATH")
-    return Path(configured).expanduser() if configured else DEFAULT_CONFIG_PATH
+    return Path(configured).expanduser() if configured else _default_app_state_path() / "config.json"
 
 
 def _path_identities(path: Path | str) -> tuple[Path, Path]:

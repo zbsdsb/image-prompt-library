@@ -7,7 +7,13 @@ from fastapi.testclient import TestClient
 from PIL import Image
 import pytest
 
-from backend.config import resolve_app_version, validate_app_owned_paths
+from backend.config import (
+    resolve_app_version,
+    resolve_auth_path,
+    resolve_config_path,
+    resolve_grok_auth_path,
+    validate_app_owned_paths,
+)
 
 
 def test_resolve_app_version_prefers_packaged_version_file(tmp_path):
@@ -34,6 +40,18 @@ def test_resolve_app_version_uses_git_describe_for_source_checkout(tmp_path, mon
     monkeypatch.setattr(config.subprocess, "run", lambda *args, **kwargs: Result())
 
     assert resolve_app_version(tmp_path) == "v0.5.0-beta-8-gabc1234"
+
+
+def test_container_state_root_supplies_default_app_owned_paths(tmp_path, monkeypatch):
+    state_root = tmp_path / "state"
+    monkeypatch.setenv("IMAGE_PROMPT_LIBRARY_STATE_PATH", str(state_root))
+    monkeypatch.delenv("IMAGE_PROMPT_LIBRARY_AUTH_PATH", raising=False)
+    monkeypatch.delenv("IMAGE_PROMPT_LIBRARY_GROK_AUTH_PATH", raising=False)
+    monkeypatch.delenv("IMAGE_PROMPT_LIBRARY_CONFIG_PATH", raising=False)
+
+    assert resolve_auth_path() == state_root / "auth.json"
+    assert resolve_grok_auth_path() == state_root / "grok-auth.json"
+    assert resolve_config_path() == state_root / "config.json"
 
 
 @pytest.mark.parametrize(

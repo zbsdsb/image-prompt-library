@@ -15,8 +15,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     HOME=/home/app \
     IMAGE_PROMPT_LIBRARY_PATH=/data/library \
-    IMAGE_PROMPT_LIBRARY_AUTH_PATH=/data/state/auth.json \
-    IMAGE_PROMPT_LIBRARY_GROK_AUTH_PATH=/data/state/grok-auth.json \
+    IMAGE_PROMPT_LIBRARY_STATE_PATH=/data/state \
     IMAGE_PROMPT_LIBRARY_CONFIG_PATH=/data/state/config.json
 
 WORKDIR /app
