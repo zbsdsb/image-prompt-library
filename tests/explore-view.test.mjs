@@ -851,8 +851,8 @@ test('Explore wiring preserves Library management, semantic appearance, and rest
   assert.match(styles, /\.item-card:focus-within \.card-actions/);
   assert.match(styles, /\.card-open-hit:focus-visible\{[^}]*outline:2px/);
   assert.match(styles, /\.hover-action:focus-visible/);
-  assert.match(styles, /\.item-card \.card-actions\{[^}]*display:flex!important;[^}]*width:max-content;[^}]*flex-direction:column;[^}]*align-items:flex-end;[^}]*opacity:1/);
   assert.match(styles, /\.item-card \.card-action-secondary\{display:none\}/);
+  assert.match(styles, /@media\(max-width:760px\)\{[\s\S]*?\.item-card \.card-actions\{display:none!important\}/);
   assert.match(styles, /\.item-card \.card-more-shell\{display:inline-flex;width:34px;height:34px\}/);
   assert.match(styles, /\.card-action-menu-item\{[\s\S]*?min-height:44px/);
   assert.match(itemCard, /className="card-action-menu" role="menu"/);
@@ -931,7 +931,7 @@ test('Explore wiring preserves Library management, semantic appearance, and rest
   assert.match(config, /const closePanel = \(\) => \{[\s\S]*?providersRequestRef\.current \+= 1;[\s\S]*?providerActionRequestRef\.current \+= 1/);
   assert.match(config, /const pollProviderAuth = async \(providerId: string\) => \{[\s\S]*?if \(providerActionRequestRef\.current !== requestId\) return;[\s\S]*?if \(providerActionRequestRef\.current === requestId\) setProviderBusy\(undefined\)/);
   assert.doesNotMatch(styles, /search-query-chip/);
-  assert.match(styles, /\.item-card \.hover-action\{width:34px;height:34px;min-width:34px;min-height:34px/);
+  assert.match(styles, /@media \(min-width:761px\) and \(hover:none\),\(min-width:761px\) and \(pointer:coarse\)\{[\s\S]*?\.item-card \.card-actions\{display:none!important\}/);
   assert.match(generationPanel, /\.generate-variant-button, \.mobile-generate-variant-button/);
   assert.match(generationPanel, /secondaryFallbackFocusSelector: item \? '\.detail\.modal'/);
   assert.match(modalFocus, /\.\.\.fallbacks, \.\.\.secondaryFallbacks, appFallback/);
@@ -1153,8 +1153,8 @@ test('redesign interaction guards keep overlays mutually exclusive and focus-saf
   assert.match(focus, /hasActiveModalOutside\([\s\S]*?restoreCandidates/);
   assert.match(focus, /dialog\.contains\(candidate\)/);
   assert.match(styles, /\.card-actions\{[\s\S]*?position:absolute;[\s\S]*?display:flex;[\s\S]*?width:max-content/);
-  assert.match(styles, /@media\(max-width:760px\)\{[\s\S]*?\.item-card \.card-actions\{[^}]*display:flex!important;[^}]*width:max-content;[^}]*opacity:1;[^}]*transform:none;[^}]*pointer-events:auto/);
-  assert.match(styles, /@media \(min-width:761px\) and \(hover:none\),\(min-width:761px\) and \(pointer:coarse\)\{[\s\S]*?\.item-card \.card-actions\{display:flex;width:max-content;opacity:1;transform:none;pointer-events:auto/);
+  assert.match(styles, /@media\(max-width:760px\)\{[\s\S]*?\.item-card \.card-actions\{display:none!important\}/);
+  assert.match(styles, /@media \(min-width:761px\) and \(hover:none\),\(min-width:761px\) and \(pointer:coarse\)\{[\s\S]*?\.item-card \.card-actions\{display:none!important\}/);
   assert.match(styles, /@media\(max-width:320px\)\{[\s\S]*?\.responsive-cards-grid\{column-count:1\}/);
   assert.match(styles, /@media\(max-width:320px\)\{[\s\S]*?\.responsive-cards-grid\.is-sparse\.sparse-count-2\{grid-template-columns:1fr;gap:18px\}/);
   assert.match(styles, /\.mobile-hero-primary-actions\{[^}]*justify-content:flex-start;[^}]*overflow-x:auto/);
@@ -1253,8 +1253,7 @@ test('Explore/detail CSS keeps responsive grids, token controls, CJK hierarchy, 
   assert.match(styles, /--studio-glass-fill:var\(--studio-surface\);[\s\S]*?--studio-glass-fill-strong:var\(--studio-surface\);[\s\S]*?--studio-glass-dark-fill:rgb\(16 16 18\)/);
   assert.match(styles, /\.generation-queue-quick-expand,[\s\S]*?\.generation-stage-result \.stage-action\{[\s\S]*?background:var\(--studio-glass-fill\);[\s\S]*?box-shadow:var\(--studio-glass-shadow-compact\)/);
   assert.match(styles, /\.scope-sort-control:focus-within\{[^}]*background:rgb\(var\(--studio-accent-rgb\) \/ \.06\);outline:0/);
-  assert.match(styles, /@media\(max-width:760px\)\{[\s\S]*?\.item-card \.hover-action\{[^}]*background:rgb\(var\(--studio-surface-rgb\) \/ \.5\)/);
-  assert.match(styles, /@media\(max-width:760px\)\{[\s\S]*?\.item-card \.hover-action\{[^}]*opacity:\.75/);
+  assert.match(styles, /@media\(max-width:760px\)\{[\s\S]*?\.item-card \.card-actions\{display:none!important\}/);
   assert.match(styles, /html:lang\(zh-Hant\) \.detail\.modal \.generate-variant-button,[\s\S]*?width:44px;[\s\S]*?min-width:44px;[\s\S]*?flex-basis:44px/);
   assert.match(styles, /@supports \(\(-webkit-backdrop-filter:blur\(1px\)\) or \(backdrop-filter:blur\(1px\)\)\)\{[\s\S]*?\.item-card \.hover-action\{[\s\S]*?backdrop-filter:var\(--studio-glass-filter\)/);
   assert.match(styles, /\.generation-stage-result \.stage-action:disabled\{opacity:\.45;cursor:not-allowed\}/);

@@ -913,8 +913,9 @@ button.explore-collection-preview:focus-visible{outline:2px solid var(--studio-a
 .card-action-menu-item:disabled{opacity:.48;cursor:wait}
 .card-action-menu-item svg{flex:0 0 auto;stroke-width:1.8}
 @media (min-width:761px) and (hover:none),(min-width:761px) and (pointer:coarse){
-  .item-card .card-actions{display:flex;width:max-content;opacity:1;transform:none;pointer-events:auto;gap:5px}
-  .item-card .hover-action{width:34px;height:34px;min-width:34px;min-height:34px;padding:0}
+  /* Touch tablets have no hover either, so the always-on overlay has the same
+     problem it does on phones. */
+  .item-card .card-actions{display:none!important}
 }
 .hover-action:hover,.hover-action:focus-visible{color:var(--studio-ink);background:rgb(var(--studio-surface-rgb) / .98);outline:0;box-shadow:0 10px 22px rgb(var(--studio-ink-rgb) / .2);transform:translateY(-1px)}
 .hover-action:focus-visible{box-shadow:0 0 0 2px var(--accent-strong),0 10px 22px rgb(var(--studio-ink-rgb) / .2)}
@@ -1014,7 +1015,6 @@ button.explore-collection-preview:focus-visible{outline:2px solid var(--studio-a
   .responsive-cards-grid .card-body{padding:7px 18px 0 1px}
   .responsive-cards-grid .card-body h3{font-size:12px;line-height:1.32}
   .card-image-frame,.card-image-frame img,.card-image-frame.natural-ratio img,.explore-masonry .card-image-frame img{border-radius:4px}
-  .item-card .card-actions{display:flex!important;top:8px;right:8px;bottom:auto;width:max-content;flex-direction:column;align-items:flex-end;opacity:1;transform:none;pointer-events:auto;gap:5px}
   .item-card .card-action-secondary{display:none}
   .item-card .card-more-shell{display:inline-flex;width:34px;height:34px}
   .item-card .hover-action{
@@ -1920,37 +1920,11 @@ body:has(.modal-backdrop),body:has(.drawer.open),body:has(.generation-queue-draw
   .scope-sort-prefix{font-size:9px}
   .scope-sort-select{height:38px;min-height:38px;max-width:min(145px,36vw);padding-left:5px;font-size:11px}
   .scope-actions.has-back .scope-sort-control{justify-self:end}
-  /* This is the rule that actually governs the on-image controls at phone
-     widths, so it has to carry the quiet treatment as well. An opaque white
-     disc with a heavy shadow reads as a sticker over the reference art. */
-  .item-card .hover-action{
-    border:0;
-    color:rgb(var(--studio-ink-rgb) / .82);
-    background:rgb(var(--studio-surface-rgb) / .5);
-    box-shadow:0 2px 8px rgb(var(--studio-ink-rgb) / .1);
-    -webkit-backdrop-filter:blur(10px) saturate(1.2);
-    backdrop-filter:blur(10px) saturate(1.2);
-    opacity:.75;
-  }
-  .item-card .card-action-copy svg,
-  .item-card .card-action-more svg{width:16px;height:16px;opacity:.92}
-  /* A 14px blur turns a 34px control into a visibly frosted sticker; the lighter
-     blur keeps the icon legible without advertising the disc itself. */
-  .item-card .hover-action{-webkit-backdrop-filter:blur(6px) saturate(1.1);backdrop-filter:blur(6px) saturate(1.1)}
-  .item-card .hover-action:active,
-  .item-card .card-actions.is-menu-open .hover-action{
-    opacity:1;
-    background:rgb(var(--studio-surface-rgb) / .92);
-    color:var(--studio-ink);
-  }
-  .item-card .hover-action:hover,
-  .item-card .hover-action:focus-visible{
-    border:0;
-    background:rgb(var(--studio-surface-rgb) / .94);
-    color:var(--studio-ink);
-    box-shadow:0 6px 16px rgb(var(--studio-ink-rgb) / .16);
-    outline:0;
-  }
+  /* On a phone these controls are permanently visible and sit directly on the
+     artwork, so they read as stickers pasted over the reference image. The card
+     itself opens the detail sheet, which already carries copy, download,
+     favorite and edit for the item. */
+  .item-card .card-actions{display:none!important}
   .modal-backdrop{padding:0;align-items:stretch}
   .detail.modal{width:100vw;height:100dvh;max-height:100dvh;min-height:100dvh;overflow-y:auto;padding:0;border:0;border-radius:0}
   .detail.modal .detail-modal-content{display:block;height:auto;min-height:100%}
@@ -2088,18 +2062,6 @@ body:has(.modal-backdrop),body:has(.drawer.open),body:has(.generation-queue-draw
   .item-card .hover-action{
     -webkit-backdrop-filter:var(--studio-glass-filter);
     backdrop-filter:var(--studio-glass-filter);
-  }
-}
-
-/* Declared after the @supports block above so the quiet treatment wins at phone
-   widths: the shared glass preset frosts these small on-image controls into
-   opaque-looking stickers. */
-@media(max-width:760px){
-  .item-card .card-actions .hover-action{
-    -webkit-backdrop-filter:blur(6px) saturate(1.1);
-    backdrop-filter:blur(6px) saturate(1.1);
-    box-shadow:0 2px 8px rgb(var(--studio-ink-rgb) / .1);
-    opacity:.75;
   }
 }
 
