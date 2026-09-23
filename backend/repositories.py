@@ -513,7 +513,7 @@ class ItemRepository:
         with connect(self.library_path) as conn:
             return [row[0] for row in conn.execute("SELECT DISTINCT model FROM items WHERE archived=0 AND TRIM(model)!='' ORDER BY model COLLATE NOCASE")]
 
-    def list_items(self, q: str | None=None, cluster: str | None=None, tag: str | None=None, model: str | None=None, favorite: bool | None=None, archived: bool | None=False, sort: str="updated_desc", limit: int=100, offset: int=0) -> ItemList:
+    def list_items(self, q: str | None=None, cluster: str | None=None, tag: str | None=None, model: str | None=None, aspect: str | None=None, favorite: bool | None=None, archived: bool | None=False, sort: str="updated_desc", limit: int=100, offset: int=0) -> ItemList:
         parsed_query = parse_item_search_query(q or "")
         if parsed_query.archived is not None:
             archived = parsed_query.archived
@@ -522,6 +522,13 @@ class ItemRepository:
         if cluster: where.append("(i.cluster_id=? OR c.name=?)"); params += [cluster, cluster]
         if tag: where.append("EXISTS (SELECT 1 FROM item_tags it JOIN tags t ON t.id=it.tag_id WHERE it.item_id=i.id AND (t.id=? OR t.name=?))"); params += [tag, tag]
         if model: where.append("i.model=? COLLATE NOCASE"); params.append(model)
+        if aspect:
+            where.append("""(SELECT CASE WHEN img.width IS NULL OR img.height IS NULL OR img.width<=0 OR img.height<=0 THEN NULL
+                WHEN img.width*20 < img.height*19 THEN 'portrait'
+                WHEN img.width*20 > img.height*21 THEN 'landscape' ELSE 'square' END
+                FROM images img WHERE img.item_id=i.id
+                ORDER BY CASE img.role WHEN 'result_image' THEN 0 ELSE 1 END, img.sort_order, img.created_at LIMIT 1)=?""")
+            params.append(aspect)
         if favorite is not None: where.append("i.favorite=?"); params.append(int(favorite))
         if parsed_query.favorite is not None: where.append("i.favorite=?"); params.append(int(parsed_query.favorite))
         if parsed_query.created:

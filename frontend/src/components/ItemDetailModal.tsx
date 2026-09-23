@@ -7,7 +7,7 @@ import { copyTextToClipboard } from '../utils/clipboard';
 import { localizedDemoTitle } from '../utils/demoTitles';
 import { downloadFileName, imageDisplayPath, imageHeroPath, imageOriginalPath, imageThumbnailPath, selectPrimaryImage, swipedImageIndex } from '../utils/images';
 import type { Translator } from '../utils/i18n';
-import { PROMPT_LANGUAGE_LABELS, resolveOriginalPrompt, resolvePromptText, type PromptCopyLanguage, type PromptLanguage } from '../utils/prompts';
+import { PROMPT_LANGUAGE_LABELS, originalPromptScript, resolveOriginalPrompt, resolvePromptText, type PromptCopyLanguage, type PromptLanguage } from '../utils/prompts';
 
 const LANG_LABELS: Record<string, string> = {
   ...PROMPT_LANGUAGE_LABELS,
@@ -645,6 +645,7 @@ export default function ItemDetailModal({
                             {promptDisplayOrder.map(promptLanguage => {
                               const tabPrompt = item.prompts.find(prompt => prompt.language === promptLanguage);
                               const isOriginalPrompt = Boolean(tabPrompt?.is_original || originalPrompt?.language === promptLanguage);
+                              const originalScript = originalPromptScript(tabPrompt);
                               return (
                                 <button
                                   type="button"
@@ -655,7 +656,7 @@ export default function ItemDetailModal({
                                   title={tabPrompt?.text.trim() ? undefined : t('promptText')}
                                   key={promptLanguage}
                                 >
-                                  {LANG_LABELS[promptLanguage] || promptLanguage}
+                                  {originalScript === 'zh' ? t('sourceChinese') : originalScript === 'ja' ? t('sourceJapanese') : LANG_LABELS[promptLanguage] || promptLanguage}
                                   {isOriginalPrompt && <span className="origin-badge">{t('origin')}</span>}
                                 </button>
                               );

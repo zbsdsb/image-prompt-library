@@ -108,7 +108,7 @@ def _request_host_allowed(request: Request, names: set[str]) -> bool:
 
 
 def frontend_file_response(path: Path, *, is_index: bool) -> FileResponse:
-    headers = FRONTEND_INDEX_CACHE_HEADERS if is_index else FRONTEND_ASSET_CACHE_HEADERS
+    headers = FRONTEND_INDEX_CACHE_HEADERS if is_index or path.name in {"sw.js", "manifest.webmanifest"} else FRONTEND_ASSET_CACHE_HEADERS
     return FileResponse(path, headers=headers)
 
 

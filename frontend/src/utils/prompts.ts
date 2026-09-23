@@ -21,6 +21,19 @@ export function getPromptCopyLanguageLabel(language: PromptCopyLanguage, uiLangu
 
 export const DEFAULT_PROMPT_LANGUAGE: PromptCopyLanguage = 'origin';
 
+// Legacy imports sometimes store an original Chinese or Japanese prompt in
+// the English slot. Keep the stored key stable; only correct its visible badge.
+export function originalPromptScript(prompt?: Pick<PromptRecord, 'language' | 'text' | 'is_original'>): 'zh' | 'ja' | undefined {
+  if (!prompt?.is_original || prompt.language !== 'en') return undefined;
+  const letters = (prompt.text.match(/\p{L}/gu) || []).length;
+  const han = (prompt.text.match(/\p{Script=Han}/gu) || []).length;
+  const kana = (prompt.text.match(/[\p{Script=Hiragana}\p{Script=Katakana}]/gu) || []).length;
+  if (letters < 24) return undefined;
+  if (kana >= 8 && (han + kana) / letters >= 0.5) return 'ja';
+  if (han >= 24 && kana < 8 && han / letters >= 0.5) return 'zh';
+  return undefined;
+}
+
 export function normalizePromptLanguage(value?: string | null): PromptCopyLanguage {
   if (value === 'origin' || value === 'zh_hant' || value === 'zh_hans' || value === 'en') return value;
   return DEFAULT_PROMPT_LANGUAGE;

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { Search, SlidersHorizontal, X } from 'lucide-react';
-import type { ClusterRecord, TagRecord } from '../types';
+import type { ClusterRecord, ImageAspectFilter, TagRecord } from '../types';
 import type { Translator } from '../utils/i18n';
 import { prefersNonKeyboardFocus, restoreFocusAfterMotion } from '../hooks/useModalFocus';
 
@@ -15,10 +15,12 @@ export default function FiltersPanel({
   selectedTag,
   selectedModel,
   favoriteOnly,
+  selectedAspect,
   onSelect,
   onTag,
   onModel,
   onFavorite,
+  onAspect,
   onClear,
   onClose,
 }: {
@@ -32,10 +34,12 @@ export default function FiltersPanel({
   selectedTag?: string;
   selectedModel?: string;
   favoriteOnly: boolean;
+  selectedAspect?: ImageAspectFilter;
   onSelect: (c: ClusterRecord) => void;
   onTag: (value?: string) => void;
   onModel: (value?: string) => void;
   onFavorite: (value: boolean) => void;
+  onAspect: (value?: ImageAspectFilter) => void;
   onClear: () => void;
   onClose: () => void;
 }) {
@@ -163,7 +167,7 @@ export default function FiltersPanel({
 
       <div className="filter-pill-grid" aria-label={t('collectionFilters')}>
         <button
-          className={!selected && !selectedTag && !selectedModel && !favoriteOnly ? 'selected' : ''}
+          className={!selected && !selectedTag && !selectedModel && !selectedAspect && !favoriteOnly ? 'selected' : ''}
           onClick={clearSelection}
           tabIndex={open ? 0 : -1}
         >
@@ -188,6 +192,7 @@ export default function FiltersPanel({
       <div className="filter-extra-fields">
         <label><span>{t('tags')}</span><select value={selectedTag || ''} onChange={event => onTag(event.target.value || undefined)}><option value="">{t('allTags')}</option>{tags.map(tag => <option key={tag.id} value={tag.id}>{tag.name} ({tag.count})</option>)}</select></label>
         <label><span>{t('libraryModelLabel')}</span><select value={selectedModel || ''} onChange={event => onModel(event.target.value || undefined)}><option value="">{t('allModels')}</option>{models.map(model => <option key={model} value={model}>{model}</option>)}</select></label>
+        <label><span>{t('imageAspect')}</span><select value={selectedAspect || ''} onChange={event => onAspect(event.target.value ? event.target.value as ImageAspectFilter : undefined)}><option value="">{t('allAspects')}</option><option value="portrait">{t('aspectPortrait')}</option><option value="square">{t('aspectSquare')}</option><option value="landscape">{t('aspectLandscape')}</option></select></label>
         <label className="filter-favorite-toggle"><input type="checkbox" checked={favoriteOnly} onChange={event => onFavorite(event.target.checked)} /><span>{t('favoritesOnly')}</span></label>
       </div>
       </aside>

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 're
 import { X } from 'lucide-react';
 import { api, isDemoMode } from '../api/client';
 import { restoreFocusAfterMotion } from '../hooks/useModalFocus';
-import type { AppearancePreset, AppConfig, AppUpdateStatus, CleanupPreview, GenerationProviderStatus, ProviderDeviceAuthStart, TitleSuggestionProvider } from '../types';
+import type { AppearancePreset, AppConfig, AppUpdateStatus, CleanupPreview, GenerationProviderStatus, ProviderDeviceAuthStart, ThemeMode, TitleSuggestionProvider } from '../types';
 import { UI_LANGUAGE_LABELS, type Translator, type UiLanguage } from '../utils/i18n';
 import { getPromptCopyLanguageLabel, type PromptCopyLanguage } from '../utils/prompts';
 
@@ -81,6 +81,8 @@ export default function ConfigPanel({
   onPreferredLanguage,
   appearance,
   onAppearance,
+  theme,
+  onTheme,
   defaultAiProvider,
   onDefaultAiProvider,
   updateStatus,
@@ -98,6 +100,8 @@ export default function ConfigPanel({
   onPreferredLanguage: (language: PromptCopyLanguage) => void;
   appearance: AppearancePreset;
   onAppearance: (appearance: AppearancePreset) => void;
+  theme: ThemeMode;
+  onTheme: (theme: ThemeMode) => void;
   defaultAiProvider: TitleSuggestionProvider;
   onDefaultAiProvider: (provider: TitleSuggestionProvider) => void;
   updateStatus?: AppUpdateStatus;
@@ -455,6 +459,17 @@ export default function ConfigPanel({
             >
               <span className={`appearance-swatch appearance-swatch-${preset}`} aria-hidden="true" />
               <span>{t(label)}</span>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="setting-group">
+        <h3>{t('colorTheme')}</h3>
+        <div className="segmented-control theme-control" role="radiogroup" aria-label={t('colorTheme')}>
+          {(['system', 'light', 'dark'] as const).map(mode => (
+            <button key={mode} type="button" role="radio" aria-checked={theme === mode} className={theme === mode ? 'active' : ''} onClick={() => onTheme(mode)}>
+              {t(mode === 'system' ? 'themeSystem' : mode === 'dark' ? 'themeDark' : 'themeLight')}
             </button>
           ))}
         </div>

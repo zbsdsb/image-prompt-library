@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api/client';
-import type { ItemList, ItemSortMode } from '../types';
+import type { ImageAspectFilter, ItemList, ItemSortMode } from '../types';
 import { DEFAULT_ITEM_SORT } from '../utils/searchSort';
 
 type QueryScope = {
@@ -8,14 +8,15 @@ type QueryScope = {
   clusterId?: string;
   tag?: string;
   model?: string;
+  aspect?: ImageAspectFilter;
   favorite?: boolean;
   viewLimit: number;
   sort: ItemSortMode;
 };
 
-export function useItemsQuery(q: string, clusterId?: string, tag?: string, viewLimit = 100, reloadKey = 0, sort: ItemSortMode = DEFAULT_ITEM_SORT, model?: string, favorite?: boolean) {
+export function useItemsQuery(q: string, clusterId?: string, tag?: string, viewLimit = 100, reloadKey = 0, sort: ItemSortMode = DEFAULT_ITEM_SORT, model?: string, favorite?: boolean, aspect?: ImageAspectFilter) {
   const [data, setData] = useState<ItemList>({ items: [], total: 0, limit: viewLimit, offset: 0 });
-  const [dataScope, setDataScope] = useState<QueryScope>({ q: '', clusterId: undefined, tag: undefined, model: undefined, favorite: undefined, viewLimit, sort });
+  const [dataScope, setDataScope] = useState<QueryScope>({ q: '', clusterId: undefined, tag: undefined, model: undefined, aspect: undefined, favorite: undefined, viewLimit, sort });
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -29,11 +30,11 @@ export function useItemsQuery(q: string, clusterId?: string, tag?: string, viewL
     setRefreshing(hasVisibleData);
     setError(undefined);
 
-    api.items({ q, cluster: clusterId, tag, model, favorite, limit: viewLimit, sort })
+    api.items({ q, cluster: clusterId, tag, model, aspect, favorite, limit: viewLimit, sort })
       .then(nextData => {
         if (!cancelled) {
           setData(nextData);
-          setDataScope({ q, clusterId, tag, model, favorite, viewLimit, sort });
+          setDataScope({ q, clusterId, tag, model, aspect, favorite, viewLimit, sort });
         }
       })
       .catch(e => {
@@ -48,7 +49,7 @@ export function useItemsQuery(q: string, clusterId?: string, tag?: string, viewL
       });
 
     return () => { cancelled = true; };
-  }, [q, clusterId, tag, model, favorite, viewLimit, reloadKey, sort]);
+  }, [q, clusterId, tag, model, aspect, favorite, viewLimit, reloadKey, sort]);
 
   return { data, loading, initialLoading, refreshing, error, dataScope };
 }

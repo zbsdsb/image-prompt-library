@@ -46,6 +46,27 @@ def test_mobile_filter_facets_and_combined_query(tmp_path):
     assert c.get("/api/items", params={"model": "Other Model", "favorite": "true"}).json()["total"] == 0
 
 
+def test_aspect_filter_uses_cover_image_and_excludes_unknown_dimensions(tmp_path):
+    c = client(tmp_path)
+    portrait = c.post("/api/items", json=create_payload(title="Portrait")).json()
+    square = c.post("/api/items", json=create_payload(title="Square")).json()
+    landscape = c.post("/api/items", json=create_payload(title="Landscape")).json()
+    c.post("/api/items", json=create_payload(title="No image"))
+    for item, size in ((portrait, (40, 80)), (square, (100, 104)), (landscape, (120, 60))):
+        response = c.post(f"/api/items/{item['id']}/images", data={"role": "result_image"}, files={"file": ("cover.png", png_bytes(size), "image/png")})
+        assert response.status_code == 200
+    # A reference image must not override the visible result-image cover.
+    assert c.post(f"/api/items/{portrait['id']}/images", data={"role": "reference_image"}, files={"file": ("reference.png", png_bytes((90, 30)), "image/png")}).status_code == 200
+    with connect(tmp_path / "library") as conn:
+        conn.execute("UPDATE images SET width=NULL WHERE item_id=?", (landscape["id"],))
+        conn.commit()
+
+    assert [item["id"] for item in c.get("/api/items", params={"aspect": "portrait"}).json()["items"]] == [portrait["id"]]
+    assert [item["id"] for item in c.get("/api/items", params={"aspect": "square"}).json()["items"]] == [square["id"]]
+    assert c.get("/api/items", params={"aspect": "landscape"}).json()["total"] == 0
+    assert c.get("/api/items", params={"aspect": "panorama"}).status_code == 422
+
+
 def test_api_rejects_explicit_prompt_provenance_without_exactly_one_original(tmp_path):
     c = client(tmp_path)
     zero_original = create_payload(prompts=[
