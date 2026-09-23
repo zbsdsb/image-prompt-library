@@ -1920,18 +1920,35 @@ body:has(.modal-backdrop),body:has(.drawer.open),body:has(.generation-queue-draw
   .scope-sort-prefix{font-size:9px}
   .scope-sort-select{height:38px;min-height:38px;max-width:min(145px,36vw);padding-left:5px;font-size:11px}
   .scope-actions.has-back .scope-sort-control{justify-self:end}
+  /* This is the rule that actually governs the on-image controls at phone
+     widths, so it has to carry the quiet treatment as well. An opaque white
+     disc with a heavy shadow reads as a sticker over the reference art. */
   .item-card .hover-action{
     border:0;
-    color:var(--studio-ink);
+    color:rgb(var(--studio-ink-rgb) / .82);
+    background:rgb(var(--studio-surface-rgb) / .5);
+    box-shadow:0 2px 8px rgb(var(--studio-ink-rgb) / .1);
+    -webkit-backdrop-filter:blur(10px) saturate(1.2);
+    backdrop-filter:blur(10px) saturate(1.2);
+    opacity:.75;
+  }
+  .item-card .card-action-copy svg,
+  .item-card .card-action-more svg{width:16px;height:16px;opacity:.92}
+  /* A 14px blur turns a 34px control into a visibly frosted sticker; the lighter
+     blur keeps the icon legible without advertising the disc itself. */
+  .item-card .hover-action{-webkit-backdrop-filter:blur(6px) saturate(1.1);backdrop-filter:blur(6px) saturate(1.1)}
+  .item-card .hover-action:active,
+  .item-card .card-actions.is-menu-open .hover-action{
+    opacity:1;
     background:rgb(var(--studio-surface-rgb) / .92);
-    box-shadow:0 8px 18px rgb(var(--studio-ink-rgb) / .18);
+    color:var(--studio-ink);
   }
   .item-card .hover-action:hover,
   .item-card .hover-action:focus-visible{
     border:0;
-    background:rgb(var(--studio-surface-rgb) / .98);
+    background:rgb(var(--studio-surface-rgb) / .94);
     color:var(--studio-ink);
-    box-shadow:0 10px 22px rgb(var(--studio-ink-rgb) / .2);
+    box-shadow:0 6px 16px rgb(var(--studio-ink-rgb) / .16);
     outline:0;
   }
   .modal-backdrop{padding:0;align-items:stretch}
@@ -2071,6 +2088,18 @@ body:has(.modal-backdrop),body:has(.drawer.open),body:has(.generation-queue-draw
   .item-card .hover-action{
     -webkit-backdrop-filter:var(--studio-glass-filter);
     backdrop-filter:var(--studio-glass-filter);
+  }
+}
+
+/* Declared after the @supports block above so the quiet treatment wins at phone
+   widths: the shared glass preset frosts these small on-image controls into
+   opaque-looking stickers. */
+@media(max-width:760px){
+  .item-card .card-actions .hover-action{
+    -webkit-backdrop-filter:blur(6px) saturate(1.1);
+    backdrop-filter:blur(6px) saturate(1.1);
+    box-shadow:0 2px 8px rgb(var(--studio-ink-rgb) / .1);
+    opacity:.75;
   }
 }
 
