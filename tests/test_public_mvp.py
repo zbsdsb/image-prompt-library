@@ -427,6 +427,8 @@ def test_built_frontend_can_be_served_by_fastapi(tmp_path):
     assets.mkdir(parents=True)
     (dist / "index.html").write_text("<html><body>Image Prompt Library</body></html>")
     (assets / "app.js").write_text("console.log('ok')")
+    (dist / "sw.js").write_text("self.addEventListener('fetch', () => {})")
+    (dist / "manifest.webmanifest").write_text('{"name":"Image Prompt Library"}')
 
     app = create_app(tmp_path / "library", frontend_dist_path=dist)
     client = TestClient(app)
@@ -440,6 +442,10 @@ def test_built_frontend_can_be_served_by_fastapi(tmp_path):
     assert asset_response.status_code == 200
     assert "console.log" in asset_response.text
     assert asset_response.headers["cache-control"] == "public, max-age=31536000, immutable"
+    for path in ("/sw.js", "/manifest.webmanifest"):
+        response = client.get(path)
+        assert response.status_code == 200
+        assert response.headers["cache-control"] == "no-store, no-cache, must-revalidate, max-age=0"
     spa_response = client.get("/some/spa/route")
     assert spa_response.status_code == 200
     assert spa_response.headers["cache-control"] == "no-store, no-cache, must-revalidate, max-age=0"

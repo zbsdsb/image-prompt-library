@@ -1,5 +1,7 @@
 export type ViewMode = 'explore' | 'cards';
 export type AppearancePreset = 'gallery_vermilion' | 'pine_archive' | 'aubergine_ink';
+export type ThemeMode = 'system' | 'light' | 'dark';
+export type ImageAspectFilter = 'portrait' | 'square' | 'landscape';
 export type UploadImageRole = 'result_image' | 'reference_image';
 export type UiLanguage = 'zh_hant' | 'zh_hans' | 'en';
 export type TitleSuggestionProvider = 'openai_codex_oauth_native' | 'xai_grok_oauth';

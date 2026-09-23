@@ -62,6 +62,11 @@ export function parseStructuredSearchChips(rawQuery: string): string[] {
   return chips;
 }
 
+export function removeStructuredSearchChip(rawQuery: string, chip: string) {
+  return normalizeSearchWhitespace(rawQuery.replace(STRUCTURED_FILTER_RE, (match, token: string) =>
+    token.toLowerCase() === chip.toLowerCase() ? ' ' : match)).replace(/^[,\s]+|[,\s]+$/g, '');
+}
+
 export function sortLabelForMode(sort: ItemSortMode, t: Translator) {
   if (sort === 'created_desc') return t('sortByCreated');
   if (sort === 'created_asc') return t('sortByOldest');

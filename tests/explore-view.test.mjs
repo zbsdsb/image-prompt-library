@@ -200,6 +200,7 @@ test('Explore directory lists only non-empty Collections with uncropped preview 
   const html = render({ clusters: [activeCluster, emptyCluster], items, total: 60 });
 
   assert.match(html, /class="explore-directory"/);
+  assert.match(html, /class="explore-collection-grid is-single-collection"/);
   assert.equal((html.match(/<h1\b/g) || []).length, 1);
   assert.match(html, /<h1>Collections<\/h1>/);
   assert.match(html, /class="scope-count"[\s\S]*?>1<span class="sr-only"> Collections<\/span>/);
@@ -850,8 +851,8 @@ test('Explore wiring preserves Library management, semantic appearance, and rest
   assert.match(styles, /\.item-card:focus-within \.card-actions/);
   assert.match(styles, /\.card-open-hit:focus-visible\{[^}]*outline:2px/);
   assert.match(styles, /\.hover-action:focus-visible/);
-  assert.match(styles, /\.item-card \.card-actions\{[^}]*display:flex!important;[^}]*width:max-content;[^}]*flex-direction:column;[^}]*align-items:flex-end;[^}]*opacity:1/);
   assert.match(styles, /\.item-card \.card-action-secondary\{display:none\}/);
+  assert.match(styles, /@media\(max-width:760px\)\{[\s\S]*?\.item-card \.card-actions\{display:none!important\}/);
   assert.match(styles, /\.item-card \.card-more-shell\{display:inline-flex;width:34px;height:34px\}/);
   assert.match(styles, /\.card-action-menu-item\{[\s\S]*?min-height:44px/);
   assert.match(itemCard, /className="card-action-menu" role="menu"/);
@@ -930,7 +931,7 @@ test('Explore wiring preserves Library management, semantic appearance, and rest
   assert.match(config, /const closePanel = \(\) => \{[\s\S]*?providersRequestRef\.current \+= 1;[\s\S]*?providerActionRequestRef\.current \+= 1/);
   assert.match(config, /const pollProviderAuth = async \(providerId: string\) => \{[\s\S]*?if \(providerActionRequestRef\.current !== requestId\) return;[\s\S]*?if \(providerActionRequestRef\.current === requestId\) setProviderBusy\(undefined\)/);
   assert.doesNotMatch(styles, /search-query-chip/);
-  assert.match(styles, /\.item-card \.hover-action\{width:34px;height:34px;min-width:34px;min-height:34px/);
+  assert.match(styles, /@media \(min-width:761px\) and \(hover:none\),\(min-width:761px\) and \(pointer:coarse\)\{[\s\S]*?\.item-card \.card-actions\{display:none!important\}/);
   assert.match(generationPanel, /\.generate-variant-button, \.mobile-generate-variant-button/);
   assert.match(generationPanel, /secondaryFallbackFocusSelector: item \? '\.detail\.modal'/);
   assert.match(modalFocus, /\.\.\.fallbacks, \.\.\.secondaryFallbacks, appFallback/);
@@ -1152,10 +1153,12 @@ test('redesign interaction guards keep overlays mutually exclusive and focus-saf
   assert.match(focus, /hasActiveModalOutside\([\s\S]*?restoreCandidates/);
   assert.match(focus, /dialog\.contains\(candidate\)/);
   assert.match(styles, /\.card-actions\{[\s\S]*?position:absolute;[\s\S]*?display:flex;[\s\S]*?width:max-content/);
-  assert.match(styles, /@media\(max-width:760px\)\{[\s\S]*?\.item-card \.card-actions\{[^}]*display:flex!important;[^}]*width:max-content;[^}]*opacity:1;[^}]*transform:none;[^}]*pointer-events:auto/);
-  assert.match(styles, /@media \(min-width:761px\) and \(hover:none\),\(min-width:761px\) and \(pointer:coarse\)\{[\s\S]*?\.item-card \.card-actions\{display:flex;width:max-content;opacity:1;transform:none;pointer-events:auto/);
-  assert.match(styles, /@media\(max-width:400px\)\{[\s\S]*?\.responsive-cards-grid\{column-count:1\}/);
-  assert.match(styles, /@media\(max-width:400px\)\{[\s\S]*?\.responsive-cards-grid\.is-sparse\.sparse-count-2\{grid-template-columns:1fr;gap:18px\}/);
+  assert.match(styles, /@media\(max-width:760px\)\{[\s\S]*?\.item-card \.card-actions\{display:none!important\}/);
+  assert.match(styles, /@media \(min-width:761px\) and \(hover:none\),\(min-width:761px\) and \(pointer:coarse\)\{[\s\S]*?\.item-card \.card-actions\{display:none!important\}/);
+  assert.match(styles, /@media\(max-width:320px\)\{[\s\S]*?\.responsive-cards-grid\{column-count:1\}/);
+  assert.match(styles, /@media\(max-width:320px\)\{[\s\S]*?\.responsive-cards-grid\.is-sparse\.sparse-count-2\{grid-template-columns:1fr;gap:18px\}/);
+  assert.match(styles, /\.mobile-hero-primary-actions\{[^}]*justify-content:flex-start;[^}]*overflow-x:auto/);
+  assert.match(styles, /\.detail-mobile-sticky-close\{position:sticky;/);
   assert.match(styles, /\.hover-action\{[\s\S]*?cursor:pointer;/);
   assert.match(styles, /\.card-media\{position:relative;z-index:2;pointer-events:none\}/);
   assert.doesNotMatch(styles, /\.item-card\.is-selecting \.card-actions/);
@@ -1165,13 +1168,15 @@ test('redesign interaction guards keep overlays mutually exclusive and focus-saf
   assert.match(styles, /\.detail-layout\{[\s\S]*?grid-template-columns:minmax\(0,1fr\) clamp\(400px,32vw,440px\)/);
   assert.match(styles, /\.detail-fullscreen-overlay\{position:absolute;right:12px;top:20px/);
   assert.match(styles, /\.modal-hero \.detail-fullscreen-frame\{[^}]*position:absolute;[^}]*inset:0;[^}]*width:100%;[^}]*height:100%/);
-  assert.match(styles, /\.mobile-hero-actions\{position:absolute;inset:0;[^}]*pointer-events:none/);
+  assert.match(styles, /\.mobile-hero-actions\{display:block;[^}]*padding:8px 14px 0/);
+  assert.match(styles, /\.detail-side>\.collection-inline-edit\{margin-bottom:-10px\}/);
+  assert.match(styles, /\.mobile-hero-primary-actions > \.modal-icon-button\{flex:1 1 0;min-width:44px/);
   assert.match(styles, /\.mobile-generate-variant-button\{display:inline-flex;[^}]*width:auto/);
   assert.match(styles, /@media\(max-width:760px\)\{[\s\S]*?\.detail-side-actions\{display:none\}/);
   assert.match(detail, /--detail-image-aspect-ratio/);
   assert.match(detail, /heroFullscreenCloseRef\.current/);
   assert.match(detail, /heroFullscreenTriggerRef\.current/);
-  assert.match(styles, /@media\(max-width:760px\)\{[\s\S]*?\.modal-hero\{height:auto;min-height:260px;max-height:min\(72dvh,680px\);aspect-ratio:var\(--detail-image-aspect-ratio,4 \/ 3\)/);
+  assert.match(styles, /@media\(max-width:760px\)\{[\s\S]*?\.modal-hero\{height:auto;min-height:240px;max-height:min\(40dvh,420px\);width:100%;aspect-ratio:var\(--detail-image-aspect-ratio,4 \/ 3\)/);
   assert.match(styles, /\.modal-hero\.is-mobile-fullscreen\{height:100dvh;min-height:100dvh;max-height:none;aspect-ratio:auto\}/);
   assert.match(styles, /\.scope-sort-control\{[\s\S]*?cursor:pointer/);
   assert.match(styles, /\.scope-sort-picker\{position:relative;display:flex;align-items:center;min-width:0\}/);
@@ -1250,7 +1255,7 @@ test('Explore/detail CSS keeps responsive grids, token controls, CJK hierarchy, 
   assert.match(styles, /--studio-glass-fill:var\(--studio-surface\);[\s\S]*?--studio-glass-fill-strong:var\(--studio-surface\);[\s\S]*?--studio-glass-dark-fill:rgb\(16 16 18\)/);
   assert.match(styles, /\.generation-queue-quick-expand,[\s\S]*?\.generation-stage-result \.stage-action\{[\s\S]*?background:var\(--studio-glass-fill\);[\s\S]*?box-shadow:var\(--studio-glass-shadow-compact\)/);
   assert.match(styles, /\.scope-sort-control:focus-within\{[^}]*background:rgb\(var\(--studio-accent-rgb\) \/ \.06\);outline:0/);
-  assert.match(styles, /@media\(max-width:760px\)\{[\s\S]*?\.item-card \.hover-action\{[^}]*background:rgb\(var\(--studio-surface-rgb\) \/ \.92\)/);
+  assert.match(styles, /@media\(max-width:760px\)\{[\s\S]*?\.item-card \.card-actions\{display:none!important\}/);
   assert.match(styles, /html:lang\(zh-Hant\) \.detail\.modal \.generate-variant-button,[\s\S]*?width:44px;[\s\S]*?min-width:44px;[\s\S]*?flex-basis:44px/);
   assert.match(styles, /@supports \(\(-webkit-backdrop-filter:blur\(1px\)\) or \(backdrop-filter:blur\(1px\)\)\)\{[\s\S]*?\.item-card \.hover-action\{[\s\S]*?backdrop-filter:var\(--studio-glass-filter\)/);
   assert.match(styles, /\.generation-stage-result \.stage-action:disabled\{opacity:\.45;cursor:not-allowed\}/);
@@ -1311,4 +1316,21 @@ test('title suggestions are explicit, provider-aware, prompt-only, and shared by
   assert.match(config, /disabled=\{!enabled\}/);
   assert.match(config, /defaultAiProvider === providerId/);
   assert.match(styles, /\.title-suggestion-meta\{[^}]*display:flex;[^}]*gap:6px/);
+});
+
+test('mobile search clear avoids label activation and Back restores the next overlay', async () => {
+  const [topBar, app, filters, focus] = await Promise.all([
+    readFile(`${ROOT}/frontend/src/components/TopBar.tsx`, 'utf8'),
+    readFile(`${ROOT}/frontend/src/App.tsx`, 'utf8'),
+    readFile(`${ROOT}/frontend/src/components/FiltersPanel.tsx`, 'utf8'),
+    readFile(`${ROOT}/frontend/src/hooks/useModalFocus.ts`, 'utf8'),
+  ]);
+
+  assert.match(topBar, /<div className="search toolbar-search">[\s\S]*?<input[\s\S]*?aria-label=\{t\('searchAria'\)\}[\s\S]*?<button type="button" className="search-clear"/);
+  assert.doesNotMatch(topBar, /<label className="search toolbar-search"/);
+  assert.match(app, /overlayBackPendingRef\.current = true;\s*window\.history\.back\(\)/);
+  assert.match(app, /if \(overlayBackPendingRef\.current\) \{[\s\S]*?if \(overlayKindRef\.current\) \{[\s\S]*?window\.history\.pushState/);
+  assert.match(app, /\}, \[overlayKind\]\)/);
+  assert.match(filters, /if \(wasOpenRef\.current\) \{[\s\S]*?restoreFocusAfterMotion/);
+  assert.match(focus, /prefersNonKeyboardFocus\(\) \|\| !isTextInput\(element\)/);
 });

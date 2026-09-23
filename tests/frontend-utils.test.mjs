@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
+import { runInNewContext } from 'node:vm';
 import ts from 'typescript';
 
 async function importTypescript(relativePath) {
@@ -14,13 +15,16 @@ async function importTypescript(relativePath) {
 const {
   parseSearchSortQuery,
   parseStructuredSearchChips,
+  removeStructuredSearchChip,
   removeSearchSortOperator,
 } = await importTypescript('../frontend/src/utils/searchSort.ts');
-const { resolveOriginalPrompt, resolvePromptText } = await importTypescript('../frontend/src/utils/prompts.ts');
-const { downloadFileName, imageDisplayPath, imageThumbnailPath, selectPrimaryImage } = await importTypescript('../frontend/src/utils/images.ts');
+const { originalPromptScript, resolveOriginalPrompt, resolvePromptText } = await importTypescript('../frontend/src/utils/prompts.ts');
+const { downloadFileName, imageAspectFilter, imageDisplayPath, imageThumbnailPath, selectPrimaryImage, swipedImageIndex } = await importTypescript('../frontend/src/utils/images.ts');
 const { generationFailure } = await importTypescript('../frontend/src/utils/generationFailures.ts');
 const { generationSetProgressText, providerPauseSeconds } = await importTypescript('../frontend/src/utils/generationSets.ts');
 const { APPEARANCE_STORAGE_KEY, DEFAULT_APPEARANCE, normalizeAppearance } = await importTypescript('../frontend/src/utils/appearance.ts');
+const { PULL_REFRESH_THRESHOLD, pullRefreshDistance } = await importTypescript('../frontend/src/utils/pullRefresh.ts');
+const { DEFAULT_THEME, THEME_STORAGE_KEY, normalizeTheme } = await importTypescript('../frontend/src/utils/theme.ts');
 const { DEFAULT_AI_PROVIDER_STORAGE_KEY, resolveDefaultAiProvider } = await importTypescript('../frontend/src/utils/defaultAiProvider.ts');
 const {
   createGenerationReviewSession,
@@ -50,6 +54,8 @@ test('search helpers parse sort operators and supported filter chips', () => {
     parseStructuredSearchChips('created:7d tag:poster favorite:true has:image created:forever'),
     ['created:7d', 'tag:poster', 'favorite:true', 'has:image'],
   );
+  assert.equal(removeStructuredSearchChip('cats tag:poster sort:title favorite:true', 'tag:poster'), 'cats sort:title favorite:true');
+  assert.equal(removeStructuredSearchChip('tag:poster,tag:other', 'tag:poster'), 'tag:other');
 });
 
 test('prompt helpers prefer requested text and fall back predictably', () => {
@@ -73,6 +79,91 @@ test('image helpers select result images and produce safe download names', () =>
   assert.equal(imageThumbnailPath({ ...result, thumb_path: 'thumb.webp' }), 'thumb.webp');
   assert.equal(imageThumbnailPath({ ...result, thumb_path: undefined }), 'preview.webp');
   assert.equal(downloadFileName('  Poster / Study  ', 'preview.webp?size=large'), 'poster-study.webp');
+});
+
+test('mobile image swipes ignore vertical movement and stop at gallery edges', () => {
+  assert.equal(swipedImageIndex(0, 3, -65, 10), 1);
+  assert.equal(swipedImageIndex(1, 3, 65, 10), 0);
+  assert.equal(swipedImageIndex(0, 3, 80, 0), 0);
+  assert.equal(swipedImageIndex(2, 3, -80, 0), 2);
+  assert.equal(swipedImageIndex(1, 3, -90, 100), 1);
+  assert.equal(swipedImageIndex(1, 3, -20, 0), 1);
+});
+
+test('pull-to-refresh only arms on a downward vertical gesture at page top', () => {
+  assert.equal(PULL_REFRESH_THRESHOLD, 72);
+  assert.equal(pullRefreshDistance(0, 80, true), 80);
+  assert.equal(pullRefreshDistance(0, 80, false), 0);
+  assert.equal(pullRefreshDistance(90, 80, true), 0);
+  assert.equal(pullRefreshDistance(0, -80, true), 0);
+  assert.equal(pullRefreshDistance(0, 19, true), 0);
+});
+
+test('theme settings distinguish system, light, and dark without accepting stale values', () => {
+  assert.equal(DEFAULT_THEME, 'system');
+  assert.equal(THEME_STORAGE_KEY, 'image-prompt-library.theme.v1');
+  assert.equal(normalizeTheme('dark'), 'dark');
+  assert.equal(normalizeTheme('light'), 'light');
+  assert.equal(normalizeTheme('system'), 'system');
+  assert.equal(normalizeTheme('invalid'), 'system');
+});
+
+test('service worker only intercepts public static resources under its scope', async () => {
+  const source = await readFile(new URL('../frontend/public/sw.js', import.meta.url), 'utf8');
+  const listeners = {};
+  const cacheEntries = new Map();
+  const cache = {
+    put: async (key, value) => cacheEntries.set(String(key), value),
+    addAll: async keys => keys.forEach(key => cacheEntries.set(key, new Response('asset'))),
+  };
+  const caches = {
+    open: async () => cache,
+    match: async key => cacheEntries.get(String(key)),
+    keys: async () => ['image-prompt-library-static-v1'],
+    delete: async () => true,
+  };
+  const scope = 'https://example.test/image-prompt-library/';
+  const self = { registration: { scope }, addEventListener: (name, listener) => { listeners[name] = listener; }, skipWaiting: async () => {}, clients: { claim: async () => {} } };
+  const network = async request => new Response(String(request) === scope
+    ? '<html><script src="/image-prompt-library/assets/app.js"></script></html>'
+    : 'asset', { headers: { 'content-type': 'text/html' } });
+  runInNewContext(source, { self, URL, Response, caches, fetch: network });
+  let installed;
+  listeners.install({ waitUntil: promise => { installed = promise; } });
+  await installed;
+  assert.ok(cacheEntries.has(scope));
+  assert.ok(cacheEntries.has(`${scope}assets/app.js`));
+  assert.ok(cacheEntries.has(`${scope}manifest.webmanifest`));
+
+  const request = (path, mode = 'same-origin') => {
+    let response;
+    listeners.fetch({ request: { method: 'GET', url: new URL(path, scope).href, mode }, respondWith: promise => { response = promise; } });
+    return response;
+  };
+  assert.equal(request('api/items'), undefined);
+  assert.equal(request('media/private.png'), undefined);
+  assert.equal(request('../outside/assets/app.js'), undefined);
+  assert.equal(request('anything.json'), undefined);
+  assert.equal((await request('assets/app.js')).status, 200);
+  assert.deepEqual([...cacheEntries.keys()].filter(key => /api\/|media\//.test(key)), []);
+});
+
+test('cover aspect buckets share precise boundaries with API filtering', () => {
+  assert.equal(imageAspectFilter({ width: 90, height: 100 }), 'portrait');
+  assert.equal(imageAspectFilter({ width: 95, height: 100 }), 'square');
+  assert.equal(imageAspectFilter({ width: 105, height: 100 }), 'square');
+  assert.equal(imageAspectFilter({ width: 110, height: 100 }), 'landscape');
+  assert.equal(imageAspectFilter({ width: null, height: 100 }), undefined);
+});
+
+test('strongly non-English originals use an honest visible badge without changing stored language', () => {
+  const chinese = '做一张城市宣传海报，主题是山城雨夜。画面中心是层叠山城建筑、轻轨穿楼、霓虹倒影。';
+  const japanese = 'パチンコ屋のギラギラチラシを作って。リアルで精密な日本人女性を一人配置。';
+  const english = 'Create a polished Chinese city poster and render the title 山城雨夜 accurately.';
+  assert.equal(originalPromptScript({ language: 'en', text: chinese, is_original: true }), 'zh');
+  assert.equal(originalPromptScript({ language: 'en', text: japanese, is_original: true }), 'ja');
+  assert.equal(originalPromptScript({ language: 'en', text: english, is_original: true }), undefined);
+  assert.equal(originalPromptScript({ language: 'en', text: chinese, is_original: false }), undefined);
 });
 
 test('batch review slots retain accepted target metadata and result image paths', () => {

@@ -5,7 +5,7 @@ import re
 
 
 DATE_VALUES = {"today", "yesterday", "7d", "30d"}
-HAS_VALUES = {"image", "result", "reference", "prompt"}
+HAS_VALUES = {"image", "result", "reference", "prompt", "no_image"}
 LIST_KEYS = {
     "tag": "tags",
     "collection": "collections",

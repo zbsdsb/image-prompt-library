@@ -509,7 +509,11 @@ class ItemRepository:
         days = 7 if value == "7d" else 30
         return (current - timedelta(days=days)).isoformat(), None
 
-    def list_items(self, q: str | None=None, cluster: str | None=None, tag: str | None=None, favorite: bool | None=None, archived: bool | None=False, sort: str="updated_desc", limit: int=100, offset: int=0) -> ItemList:
+    def list_models(self) -> list[str]:
+        with connect(self.library_path) as conn:
+            return [row[0] for row in conn.execute("SELECT DISTINCT model FROM items WHERE archived=0 AND TRIM(model)!='' ORDER BY model COLLATE NOCASE")]
+
+    def list_items(self, q: str | None=None, cluster: str | None=None, tag: str | None=None, model: str | None=None, aspect: str | None=None, favorite: bool | None=None, archived: bool | None=False, sort: str="updated_desc", limit: int=100, offset: int=0) -> ItemList:
         parsed_query = parse_item_search_query(q or "")
         if parsed_query.archived is not None:
             archived = parsed_query.archived
@@ -517,6 +521,14 @@ class ItemRepository:
         if archived is not None: where.append("i.archived=?"); params.append(int(archived))
         if cluster: where.append("(i.cluster_id=? OR c.name=?)"); params += [cluster, cluster]
         if tag: where.append("EXISTS (SELECT 1 FROM item_tags it JOIN tags t ON t.id=it.tag_id WHERE it.item_id=i.id AND (t.id=? OR t.name=?))"); params += [tag, tag]
+        if model: where.append("i.model=? COLLATE NOCASE"); params.append(model)
+        if aspect:
+            where.append("""(SELECT CASE WHEN img.width IS NULL OR img.height IS NULL OR img.width<=0 OR img.height<=0 THEN NULL
+                WHEN img.width*20 < img.height*19 THEN 'portrait'
+                WHEN img.width*20 > img.height*21 THEN 'landscape' ELSE 'square' END
+                FROM images img WHERE img.item_id=i.id
+                ORDER BY CASE img.role WHEN 'result_image' THEN 0 ELSE 1 END, img.sort_order, img.created_at LIMIT 1)=?""")
+            params.append(aspect)
         if favorite is not None: where.append("i.favorite=?"); params.append(int(favorite))
         if parsed_query.favorite is not None: where.append("i.favorite=?"); params.append(int(parsed_query.favorite))
         if parsed_query.created:
@@ -542,6 +554,8 @@ class ItemRepository:
         for has_filter in parsed_query.has:
             if has_filter == "image":
                 where.append("EXISTS (SELECT 1 FROM images img WHERE img.item_id=i.id)")
+            elif has_filter == "no_image":
+                where.append("NOT EXISTS (SELECT 1 FROM images img WHERE img.item_id=i.id)")
             elif has_filter == "result":
                 where.append("EXISTS (SELECT 1 FROM images img WHERE img.item_id=i.id AND img.role='result_image')")
             elif has_filter == "reference":
@@ -560,6 +574,10 @@ class ItemRepository:
                 params += [like, like, like, like, like]
         where_sql = "WHERE " + " AND ".join(where) if where else ""
         order = {"created_desc":"i.created_at DESC", "created_asc":"i.created_at ASC", "title_asc":"i.title COLLATE NOCASE ASC", "title_desc":"i.title COLLATE NOCASE DESC", "source_asc":"i.source_name COLLATE NOCASE ASC", "model_asc":"i.model COLLATE NOCASE ASC", "rating_desc":"i.rating DESC, i.updated_at DESC"}.get(sort, "i.updated_at DESC")
+        # Text-only entries (prompts imported without an image) sink below every card
+        # that has media, so opening the grid always shows something to look at.
+        # Applied as the primary key on purpose: it must hold for every sort mode.
+        order = f"CASE WHEN EXISTS (SELECT 1 FROM images img WHERE img.item_id=i.id) THEN 0 ELSE 1 END ASC, {order}"
         with connect(self.library_path) as conn:
             total = conn.execute(f"SELECT COUNT(DISTINCT i.id) FROM items i LEFT JOIN clusters c ON c.id=i.cluster_id {where_sql}", params).fetchone()[0]
             rows = conn.execute(f"""SELECT i.*, c.id cluster_id, c.name cluster_name, c.names cluster_names, c.description cluster_description, c.sort_order cluster_sort_order FROM items i LEFT JOIN clusters c ON c.id=i.cluster_id {where_sql} GROUP BY i.id ORDER BY {order} LIMIT ? OFFSET ?""", (*params, limit, offset)).fetchall()

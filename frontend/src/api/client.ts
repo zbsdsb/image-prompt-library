@@ -1,5 +1,6 @@
 import type { AppConfig, AppUpdateRequest, AppUpdateResult, AppUpdateStatus, CleanupApplyRequest, CleanupApplyResult, CleanupPreview, ClusterRecord, CodexNativeAuthPollRequest, CodexNativeAuthPollResponse, CodexNativeAuthStart, DiscardFailedJobsResult, GenerationJobAcceptAsNewItemPayload, GenerationJobAcceptResult, GenerationJobCreate, GenerationJobList, GenerationJobRecord, GenerationJobRetryResult, GenerationJobSetCreate, GenerationJobSetRecord, GenerationProviderStatus, GrokOAuthPollRequest, ItemBatchRequest, ItemBatchResult, ItemCreate, ItemDetail, ItemImageUpdate, ItemList, ItemSortMode, ItemSummary, PromptRewriteRequest, PromptRewriteResponse, ProviderDeviceAuthStart, TagRecord, TitleSuggestionProvider, TitleSuggestionRequest, TitleSuggestionResponse, UploadImageRole } from '../types';
 import { DEFAULT_ITEM_SORT } from '../utils/searchSort';
+import { imageAspectFilter } from '../utils/images';
 
 const API = '';
 const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
@@ -91,12 +92,18 @@ async function demoItemList(params: Record<string, string | number | boolean | u
   const q = structured.q;
   const cluster = String(params.cluster || '').trim();
   const tag = String(params.tag || '').trim();
+  const model = String(params.model || '').trim();
+  const aspect = String(params.aspect || '').trim();
+  const favorite = params.favorite;
   const sort = (['updated_desc', 'created_desc', 'created_asc', 'title_asc', 'title_desc', 'source_asc', 'model_asc'].includes(String(params.sort))) ? params.sort as ItemSortMode : DEFAULT_ITEM_SORT;
   const limit = Math.max(0, Number(params.limit || 100));
   const offset = Math.max(0, Number(params.offset || 0));
   const filtered = allItems.filter(item => {
     if (cluster && item.cluster?.id !== cluster) return false;
     if (tag && !item.tags.some(itemTag => itemTag.name === tag || itemTag.id === tag)) return false;
+    if (model && normalizeDemoText(item.model) !== normalizeDemoText(model)) return false;
+    if (aspect && imageAspectFilter(item.first_image) !== aspect) return false;
+    if (favorite === true && !item.favorite) return false;
     if (!demoMatchesStructuredSearch(item, structured.filters)) return false;
     if (q && !normalizeSearchText(item).includes(q)) return false;
     return true;
@@ -268,6 +275,7 @@ export const api = isDemoMode ? {
   discardAndRetryGenerationJob: (_id: string) => demoReadOnly(),
   clusters: () => demoJson<ClusterRecord[]>('demo-data/clusters.json'),
   tags: () => demoJson<TagRecord[]>('demo-data/tags.json'),
+  models: () => demoItems().then(items => Array.from(new Set(items.map(item => item.model).filter(Boolean))).sort()),
 } : {
   health: () => json<{ok: boolean; version: string}>('/api/health'),
   config: () => json<AppConfig>('/api/config'),
@@ -312,6 +320,7 @@ export const api = isDemoMode ? {
   discardAndRetryGenerationJob: (id: string) => json<GenerationJobRetryResult>(`/api/generation-jobs/${id}/discard-and-retry`, { method: 'POST' }),
   clusters: () => json<ClusterRecord[]>('/api/clusters'),
   tags: () => json<TagRecord[]>('/api/tags'),
+  models: () => json<string[]>('/api/items/models'),
 };
 
 export { DEMO_DATA_BASE, isDemoMode };

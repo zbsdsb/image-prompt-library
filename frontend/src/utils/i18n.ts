@@ -1,14 +1,14 @@
 import type { UiLanguage } from '../types';
 export type { UiLanguage } from '../types';
 export type TranslationKey =
-  | 'filters' | 'searchAria' | 'searchPlaceholder' | 'config' | 'referencesShown' | 'collectionChip'
+  | 'filters' | 'searchAria' | 'searchPlaceholder' | 'clearSearch' | 'removeFilter' | 'allTags' | 'allModels' | 'favoritesOnly' | 'imageAspect' | 'allAspects' | 'aspectPortrait' | 'aspectSquare' | 'aspectLandscape' | 'config' | 'referencesShown' | 'collectionChip'
   | 'sortChip' | 'sortByUpdated' | 'sortByCreated' | 'sortByOldest' | 'sortByTitle' | 'sortByTitleDesc' | 'sortBySource' | 'sortByModel'
   | 'explore' | 'cards' | 'uiLanguage' | 'promptCopyLanguage' | 'promptCopyLanguageHelp' | 'providers'
   | 'libraryPath' | 'databasePath'
   | 'libraryEmptyTitle' | 'libraryEmptyHelp' | 'noMatchingPrompts' | 'noMatchingPromptsHelp' | 'addFirstPrompt'
   | 'firstRunEmptyTitle' | 'firstRunEmptyHelp' | 'firstRunOpenConfig'
   | 'firstRunSampleCommand' | 'firstRunSampleHelp' | 'firstRunGenerationHelp' | 'firstRunLocalInstall'
-  | 'localSetup' | 'systemInformation' | 'localSetupHelp' | 'appearance' | 'appearanceHelp' | 'appearanceGalleryVermilion' | 'appearancePineArchive' | 'appearanceAubergineInk' | 'appVersion' | 'updateStatusLabel'
+  | 'localSetup' | 'systemInformation' | 'localSetupHelp' | 'appearance' | 'appearanceHelp' | 'appearanceGalleryVermilion' | 'appearancePineArchive' | 'appearanceAubergineInk' | 'colorTheme' | 'themeSystem' | 'themeLight' | 'themeDark' | 'appVersion' | 'updateStatusLabel'
   | 'generationStatusLabel' | 'setupCommands' | 'statusCommandHelp' | 'doctorCommandHelp'
   | 'generate' | 'createImage' | 'reviewGeneration' | 'workQueue' | 'generationQueue' | 'noGenerationActivity' | 'generationActivityHelp'
   | 'queueLoading' | 'queueLoadFailed' | 'queueRunning' | 'queueQueued' | 'queueReady' | 'queueUsedAsReference' | 'queueFailed' | 'queueSaved' | 'queueDiscarded' | 'queueCancelled'
@@ -17,7 +17,7 @@ export type TranslationKey =
   | 'queueExpandResult' | 'queueDiscardResult' | 'queueAspectRatio' | 'queueQuality' | 'queueModel' | 'queueStatus' | 'queueMarkFailed' | 'queueRetryFailed' | 'queueCancelFailed' | 'queueRetryFailedError' | 'queueMarkFailedError' | 'queueDiscardFailed' | 'queueCancelSetFailed' | 'queueQueuedCancelNote' | 'queueRunningCancelNote' | 'queueStopSaving'
   | 'copyPrompt' | 'favorite' | 'unfavorite' | 'saved' | 'edit' | 'moreActions' | 'batchMoreActions' | 'noImage' | 'unclustered'
   | 'collections' | 'closeFilters' | 'searchCollections' | 'searchResults' | 'allReferences' | 'noCollectionsFound'
-  | 'loading' | 'loadFailed' | 'retry' | 'copySuccess' | 'copyFailed' | 'add' | 'close' | 'closeConfig'
+  | 'loading' | 'loadFailed' | 'retry' | 'pullToRefresh' | 'releaseToRefresh' | 'copySuccess' | 'copyFailed' | 'add' | 'close' | 'closeConfig'
   | 'newReference' | 'updateReference' | 'addPromptCard' | 'editPromptCard' | 'editorHelp'
   | 'title' | 'titlePlaceholder' | 'suggestTitle' | 'suggestingTitle' | 'suggestedTitle' | 'titleSuggestionProvider' | 'titleSuggestionVia' | 'useSuggestedTitle' | 'titleSuggestionLoginRequired' | 'titleSuggestionProviderLoginRequired' | 'titleSuggestionRateLimited' | 'titleSuggestionUnavailable' | 'titleSuggestionFailed' | 'collection' | 'collectionPlaceholder' | 'tags' | 'tagsPlaceholder' | 'existingTagSuggestions'
   | 'traditionalChinesePrompt' | 'traditionalPromptPlaceholder' | 'simplifiedChinesePrompt' | 'simplifiedPromptPlaceholder' | 'englishPrompt' | 'englishPromptPlaceholder'
@@ -26,7 +26,7 @@ export type TranslationKey =
   | 'batchTagTitle' | 'batchMoveTitle' | 'searchOrCreateTags' | 'selectedTags' | 'createTag' | 'noTagsFound' | 'applyTags' | 'moveReferences'
   | 'primaryNavigation' | 'appHome' | 'currentFilters' | 'preferredPromptLanguage'
   | 'collectionFilters' | 'itemActions' | 'promptLanguage' | 'promptText' | 'source' | 'defaultModel' | 'localReference'
-  | 'imageGeneratedFrom' | 'generatedWith' | 'author' | 'sourceUrl' | 'notes' | 'addNote' | 'origin' | 'markAsOriginal' | 'originalPromptHelp'
+  | 'imageGeneratedFrom' | 'generatedWith' | 'author' | 'sourceUrl' | 'notes' | 'addNote' | 'origin' | 'sourceChinese' | 'sourceJapanese' | 'markAsOriginal' | 'originalPromptHelp'
   | 'more'
   | 'onlineReadOnlyDemo' | 'runLocallyForPrivateLibrary' | 'localInstallHighlights' | 'viewOnGitHub'
   | 'chooseLanguage' | 'chooseLanguageHelp' | 'changeLanguageLater'
@@ -78,13 +78,13 @@ const TRANSLATIONS: Record<UiLanguage, Record<TranslationKey, string>> = {
     promptPlaceholder: 'Prompt', generationPrompt: '生成 prompt', promptVariables: 'Prompt 變數', fillBeforeGenerating: '生成前請填寫。', finalPrompt: '最終 prompt', completeVariables: '請完成所有變數以預覽最終 prompt。', chooseGenerationCount: '選擇生成數量', generateVariations: '生成變體', usesGenerations: '使用 ${count} 次生成', history: '歷史', generationQueuePaused: '供應商佇列暫停', rateLimitedResumes: '受速率限制 · 約 ${seconds} 秒後恢復', pausedUntil: '暫停至 ${time}', generationSet: '生成批次', finished: '${completed} / ${total} 已完成', cancelRemaining: '取消餘下 (${remaining})', selectedHistoryPrompt: '已選取的歷史 prompt', useAsDraft: '使用作為草稿', backToDraft: '返回草稿', download: '下載', viewFullscreen: '檢視全螢幕', closeFullscreen: '關閉全螢幕', generationBatchNavigation: '生成批次導覽', generationPrevious: '上一張生成結果', generationNext: '下一張生成結果',
     chooseImagesFromLibrary: '從 Library 選擇圖片', chooseRecentGenerationResult: '選擇最近的生成結果', closeReferencePicker: '關閉參考選擇器', searchLibraryReferences: '搜尋 Library 參考', chooseImage: '選擇圖片', backToLibrary: '返回 Library', reference: '參考', result: '結果', selected: '已選取', addReference: '新增參考', generatedResult: '生成結果', noRecentResults: '沒有可用的最近結果。', doneSelected: '完成 · 已選取 ${count} 個', recentGenerations: '最近生成', noGenerationJobs: '尚未有生成工作。', saveGeneratedImageAsNew: '儲存為新參考', saveGeneratedResultPreview: '生成結果預覽', originalPromptLanguage: '原文 prompt 語言', confirmSave: '儲存',
     referenceDetails: '參考資料', libraryModelLabel: 'Library 模型標籤', saveAndContinue: '儲存並繼續', continueReview: '繼續檢視（${count}）', generationRecord: '生成記錄', originalItem: '原始項目', batchPosition: '批次位置', reviewComplete: '批次檢視完成', reviewSaved: '已儲存', reviewAttached: '已附加', reviewDiscarded: '已捨棄', reviewRetrying: '重新生成中', reviewGenerating: '生成中', reviewFailedOrCancelled: '失敗／已取消',
-    filters: '篩選', searchAria: '搜尋所有 prompts', searchPlaceholder: '搜尋 prompts…', config: '設定', referencesShown: '個參考', collectionChip: 'Collection', sortChip: '排序', sortByUpdated: '最近更新', sortByCreated: '最近加入', sortByOldest: 'Oldest first', sortByTitle: '標題 A–Z', sortByTitleDesc: 'Title Z-A', sortBySource: 'Source A-Z', sortByModel: 'Model A-Z',
+    filters: '篩選', searchAria: '搜尋所有 prompts', searchPlaceholder: '搜尋 prompts…', clearSearch: '清除搜尋', removeFilter: '移除篩選', allTags: '所有標籤', allModels: '所有模型', favoritesOnly: '僅顯示收藏', imageAspect: '封面比例', allAspects: '所有比例', aspectPortrait: '直向', aspectSquare: '方形', aspectLandscape: '橫向', config: '設定', referencesShown: '個參考', collectionChip: 'Collection', sortChip: '排序', sortByUpdated: '最近更新', sortByCreated: '最近加入', sortByOldest: 'Oldest first', sortByTitle: '標題 A–Z', sortByTitleDesc: 'Title Z-A', sortBySource: 'Source A-Z', sortByModel: 'Model A-Z',
     explore: 'Explore', cards: 'Library', uiLanguage: '介面語言', promptCopyLanguage: 'Prompt 複製語言', promptCopyLanguageHelp: '複製時可使用原文 prompt；原文通常最接近 sample image 的生成結果。', providers: '供應商',
     libraryPath: 'Library 路徑', databasePath: 'Database 路徑',
     libraryEmptyTitle: '你的 library 仍然是空的', libraryEmptyHelp: '新增第一個 prompt，或安裝 sample library 先瀏覽示例內容。', noMatchingPrompts: '找不到符合的 prompts', noMatchingPromptsHelp: '請嘗試另一個搜尋、清除篩選，或新增 prompt 參考。', addFirstPrompt: '新增第一個 prompt',
     copyPrompt: '複製 prompt', favorite: '收藏', unfavorite: '取消收藏', saved: '已儲存', edit: '編輯', moreActions: '更多操作', batchMoreActions: '更多', noImage: '沒有圖片', unclustered: '未分類',
     collections: 'Collections', closeFilters: '關閉篩選', searchCollections: '搜尋 collections', searchResults: '搜尋結果', allReferences: '全部參考', noCollectionsFound: '找不到 collections',
-    loading: '載入中…', loadFailed: '載入失敗。', retry: '重試', copySuccess: 'Prompt 已複製', copyFailed: '複製失敗', add: '新增', close: '關閉', closeConfig: '關閉設定',
+    loading: '載入中…', loadFailed: '載入失敗。', retry: '重試', pullToRefresh: '下拉重新整理', releaseToRefresh: '放開重新整理', copySuccess: 'Prompt 已複製', copyFailed: '複製失敗', add: '新增', close: '關閉', closeConfig: '關閉設定',
     newReference: '新增參考', updateReference: '更新參考', addPromptCard: '新增 prompt 卡片', editPromptCard: '編輯 prompt 卡片', editorHelp: '儲存圖片、Collection、標籤和多語言 prompt。',
     title: '標題', titlePlaceholder: '為此參考命名，方便日後辨識', collection: 'Collection', collectionPlaceholder: '例如：產品商業', tags: '標籤', tagsPlaceholder: 'poster, product, cinematic', existingTagSuggestions: '現有標籤建議',
     traditionalChinesePrompt: '繁體中文 prompt', traditionalPromptPlaceholder: '貼上繁體中文 prompt…', simplifiedChinesePrompt: '簡體中文 prompt', simplifiedPromptPlaceholder: '貼上簡體中文 prompt…', englishPrompt: '英文 prompt', englishPromptPlaceholder: '貼上英文 prompt…',
@@ -93,7 +93,7 @@ const TRANSLATIONS: Record<UiLanguage, Record<TranslationKey, string>> = {
     batchTagTitle: '為已選參考加標籤', batchMoveTitle: '移動已選參考', searchOrCreateTags: '搜尋或新增標籤', selectedTags: '已選標籤', createTag: '新增「${tag}」', noTagsFound: '找不到標籤', applyTags: '套用標籤', moveReferences: '移動參考',
     primaryNavigation: '主要導覽', appHome: 'Image Prompt Library 首頁', currentFilters: '目前篩選', preferredPromptLanguage: '偏好 prompt 語言',
     collectionFilters: 'Collection 篩選', itemActions: '項目操作', promptLanguage: 'Prompt 語言', promptText: 'Prompt 文字', source: '來源', defaultModel: 'ChatGPT Image', localReference: '本機參考',
-    imageGeneratedFrom: '圖片生成來源', generatedWith: '生成自', author: '作者', sourceUrl: '來源 URL', notes: '備註', addNote: '新增備註', origin: '原文', markAsOriginal: '標記為原文', originalPromptHelp: '原文 prompt 通常最接近 sample image 的生成結果。',
+    imageGeneratedFrom: '圖片生成來源', generatedWith: '生成自', author: '作者', sourceUrl: '來源 URL', notes: '備註', addNote: '新增備註', origin: '原文', sourceChinese: '中文', sourceJapanese: '日文', markAsOriginal: '標記為原文', originalPromptHelp: '原文 prompt 通常最接近 sample image 的生成結果。',
     more: '顯示更多',
     onlineReadOnlyDemo: 'Online Read Only Demo', runLocallyForPrivateLibrary: '新增／編輯／生成需要本機安裝，請在本機運行以建立你的私人 prompt library。', localInstallHighlights: '本機版支援私人編輯、多張生成及完整備份與還原', viewOnGitHub: '在 GitHub 查看',
     chooseLanguage: '選擇介面語言', chooseLanguageHelp: '請選擇你想使用的介面語言。', changeLanguageLater: '之後可在設定中更改。',
@@ -109,7 +109,7 @@ const TRANSLATIONS: Record<UiLanguage, Record<TranslationKey, string>> = {
     localSetupHelp: '版本、資料位置及本機診斷資料。',
     appearance: '介面配色',
     appearanceHelp: '選擇介面主色；不會改變圖片或 Library 內容。',
-    appearanceGalleryVermilion: '朱紅',
+    appearanceGalleryVermilion: '朱紅', colorTheme: '明暗模式', themeSystem: '跟隨系統', themeLight: '淺色', themeDark: '深色',
     appearancePineArchive: '松綠',
     appearanceAubergineInk: '茄紫',
     appVersion: '應用程式版本',
@@ -143,13 +143,13 @@ const TRANSLATIONS: Record<UiLanguage, Record<TranslationKey, string>> = {
     promptPlaceholder: 'Prompt', generationPrompt: '生成 prompt', promptVariables: 'Prompt 变量', fillBeforeGenerating: '生成前请填写。', finalPrompt: '最终 prompt', completeVariables: '请完成所有变量以预览最终 prompt。', chooseGenerationCount: '选择生成数量', generateVariations: '生成变体', usesGenerations: '使用 ${count} 次生成', history: '历史', generationQueuePaused: '供应商队列暂停', rateLimitedResumes: '受到速率限制 · 约 ${seconds} 秒后恢复', pausedUntil: '暂停至 ${time}', generationSet: '生成批次', finished: '${completed} / ${total} 已完成', cancelRemaining: '取消剩余 (${remaining})', selectedHistoryPrompt: '已选择的历史 prompt', useAsDraft: '使用为草稿', backToDraft: '返回草稿', download: '下载', viewFullscreen: '查看全屏', closeFullscreen: '关闭全屏', generationBatchNavigation: '生成批次导航', generationPrevious: '上一个生成结果', generationNext: '下一个生成结果',
     chooseImagesFromLibrary: '从 Library 选择图片', chooseRecentGenerationResult: '选择最近的生成结果', closeReferencePicker: '关闭参考选择器', searchLibraryReferences: '搜索 Library 参考', chooseImage: '选择图片', backToLibrary: '返回 Library', reference: '参考', result: '结果', selected: '已选择', addReference: '新增参考', generatedResult: '生成结果', noRecentResults: '没有可用的最近结果。', doneSelected: '完成 · 已选择 ${count} 个', recentGenerations: '最近生成', noGenerationJobs: '尚无生成工作。', saveGeneratedImageAsNew: '保存为新参考', saveGeneratedResultPreview: '生成结果预览', originalPromptLanguage: '原文 prompt 语言', confirmSave: '保存',
     referenceDetails: '参考资料', libraryModelLabel: 'Library 模型标签', saveAndContinue: '保存并继续', continueReview: '继续查看（${count}）', generationRecord: '生成记录', originalItem: '原始项目', batchPosition: '批次位置', reviewComplete: '批次查看完成', reviewSaved: '已保存', reviewAttached: '已附加', reviewDiscarded: '已丢弃', reviewRetrying: '重新生成中', reviewGenerating: '生成中', reviewFailedOrCancelled: '失败／已取消',
-    filters: '筛选', searchAria: '搜索所有 prompts', searchPlaceholder: '搜索 prompts…', config: '设置', referencesShown: '个参考', collectionChip: 'Collection', sortChip: '排序', sortByUpdated: '最近更新', sortByCreated: '最近加入', sortByOldest: 'Oldest first', sortByTitle: '标题 A–Z', sortByTitleDesc: 'Title Z-A', sortBySource: 'Source A-Z', sortByModel: 'Model A-Z',
+    filters: '筛选', searchAria: '搜索所有 prompts', searchPlaceholder: '搜索 prompts…', clearSearch: '清空搜索', removeFilter: '移除筛选', allTags: '所有标签', allModels: '所有模型', favoritesOnly: '仅显示收藏', imageAspect: '封面比例', allAspects: '所有比例', aspectPortrait: '竖版', aspectSquare: '方形', aspectLandscape: '横版', config: '设置', referencesShown: '个参考', collectionChip: 'Collection', sortChip: '排序', sortByUpdated: '最近更新', sortByCreated: '最近加入', sortByOldest: 'Oldest first', sortByTitle: '标题 A–Z', sortByTitleDesc: 'Title Z-A', sortBySource: 'Source A-Z', sortByModel: 'Model A-Z',
     explore: 'Explore', cards: 'Library', uiLanguage: '界面语言', promptCopyLanguage: 'Prompt 复制语言', promptCopyLanguageHelp: '复制时可使用原文 prompt；原文通常最接近 sample image 的生成结果。', providers: '供应商',
     libraryPath: 'Library 路径', databasePath: 'Database 路径',
     libraryEmptyTitle: '你的 library 还是空的', libraryEmptyHelp: '新增第一个 prompt，或安装 sample library 先浏览示例内容。', noMatchingPrompts: '找不到符合的 prompts', noMatchingPromptsHelp: '请尝试另一个搜索、清除筛选，或新增 prompt 参考。', addFirstPrompt: '新增第一个 prompt',
     copyPrompt: '复制 prompt', favorite: '收藏', unfavorite: '取消收藏', saved: '已保存', edit: '编辑', moreActions: '更多操作', batchMoreActions: '更多', noImage: '无图片', unclustered: '未分类',
     collections: 'Collections', closeFilters: '关闭筛选', searchCollections: '搜索 collections', searchResults: '搜索结果', allReferences: '全部参考', noCollectionsFound: '找不到 collections',
-    loading: '加载中…', loadFailed: '加载失败。', retry: '重试', copySuccess: 'Prompt 已复制', copyFailed: '复制失败', add: '新增', close: '关闭', closeConfig: '关闭设置',
+    loading: '加载中…', loadFailed: '加载失败。', retry: '重试', pullToRefresh: '下拉刷新', releaseToRefresh: '松开刷新', copySuccess: 'Prompt 已复制', copyFailed: '复制失败', add: '新增', close: '关闭', closeConfig: '关闭设置',
     newReference: '新增参考', updateReference: '更新参考', addPromptCard: '新增 prompt 卡片', editPromptCard: '编辑 prompt 卡片', editorHelp: '保存图片、Collection、标签和多语言 prompt。',
     title: '标题', titlePlaceholder: '为此参考命名，方便日后辨识', collection: 'Collection', collectionPlaceholder: '例如：产品商业', tags: '标签', tagsPlaceholder: 'poster, product, cinematic', existingTagSuggestions: '现有标签建议',
     traditionalChinesePrompt: '繁体中文 prompt', traditionalPromptPlaceholder: '贴上繁体中文 prompt…', simplifiedChinesePrompt: '简体中文 prompt', simplifiedPromptPlaceholder: '粘贴简体中文 prompt…', englishPrompt: '英文 prompt', englishPromptPlaceholder: '粘贴英文 prompt…',
@@ -158,7 +158,7 @@ const TRANSLATIONS: Record<UiLanguage, Record<TranslationKey, string>> = {
     batchTagTitle: '为已选参考添加标签', batchMoveTitle: '移动已选参考', searchOrCreateTags: '搜索或新增标签', selectedTags: '已选标签', createTag: '新增“${tag}”', noTagsFound: '找不到标签', applyTags: '应用标签', moveReferences: '移动参考',
     primaryNavigation: '主要导航', appHome: 'Image Prompt Library 首页', currentFilters: '当前筛选', preferredPromptLanguage: '偏好 prompt 语言',
     collectionFilters: 'Collection 筛选', itemActions: '项目操作', promptLanguage: 'Prompt 语言', promptText: 'Prompt 文字', source: '来源', defaultModel: 'ChatGPT Image', localReference: '本地参考',
-    imageGeneratedFrom: '图片生成来源', generatedWith: '生成自', author: '作者', sourceUrl: '来源 URL', notes: '备注', addNote: '新增备注', origin: '原文', markAsOriginal: '标记为原文', originalPromptHelp: '原文 prompt 通常最接近 sample image 的生成结果。',
+    imageGeneratedFrom: '图片生成来源', generatedWith: '生成自', author: '作者', sourceUrl: '来源 URL', notes: '备注', addNote: '新增备注', origin: '原文', sourceChinese: '中文', sourceJapanese: '日文', markAsOriginal: '标记为原文', originalPromptHelp: '原文 prompt 通常最接近 sample image 的生成结果。',
     more: '显示更多',
     onlineReadOnlyDemo: 'Online Read Only Demo', runLocallyForPrivateLibrary: '新增／编辑／生成需要本机安装，请在本机运行以建立你的私人 prompt library。', localInstallHighlights: '本机版支持私人编辑、多张生成及完整备份与还原', viewOnGitHub: '在 GitHub 查看',
     chooseLanguage: '选择界面语言', chooseLanguageHelp: '请选择你想使用的界面语言。', changeLanguageLater: '之后可在设置中更改。',
@@ -174,7 +174,7 @@ const TRANSLATIONS: Record<UiLanguage, Record<TranslationKey, string>> = {
     localSetupHelp: '版本、数据位置及本机诊断信息。',
     appearance: '界面配色',
     appearanceHelp: '选择界面主色；不会改变图片或 Library 内容。',
-    appearanceGalleryVermilion: '朱红',
+    appearanceGalleryVermilion: '朱红', colorTheme: '明暗模式', themeSystem: '跟随系统', themeLight: '浅色', themeDark: '深色',
     appearancePineArchive: '松绿',
     appearanceAubergineInk: '茄紫',
     appVersion: '应用程序版本',
@@ -208,7 +208,7 @@ const TRANSLATIONS: Record<UiLanguage, Record<TranslationKey, string>> = {
     promptPlaceholder: 'Prompt', generationPrompt: 'Generation prompt', promptVariables: 'Prompt variables', fillBeforeGenerating: 'Fill these before generating.', finalPrompt: 'Final prompt', completeVariables: 'Complete all variables to preview the final prompt.', chooseGenerationCount: 'Choose number of generations', generateVariations: 'Generate variations', usesGenerations: 'Uses ${count} generations', history: 'History', generationQueuePaused: 'Provider queue paused', rateLimitedResumes: 'Rate limited · resumes in about ${seconds}s', pausedUntil: 'Paused until ${time}', generationSet: 'Generation set', finished: '${completed} / ${total} finished', cancelRemaining: 'Cancel remaining (${remaining})', selectedHistoryPrompt: 'Selected history prompt', useAsDraft: 'Use as draft', backToDraft: 'Back to draft', download: 'Download', viewFullscreen: 'View fullscreen', closeFullscreen: 'Close fullscreen', generationBatchNavigation: 'Generation batch navigation', generationPrevious: 'Previous generation result', generationNext: 'Next generation result',
     chooseImagesFromLibrary: 'Choose images from Library', chooseRecentGenerationResult: 'Choose recent generation result', closeReferencePicker: 'Close reference picker', searchLibraryReferences: 'Search Library references', chooseImage: 'Choose image', backToLibrary: 'Back to Library', reference: 'Reference', result: 'Result', selected: 'Selected', addReference: 'Add reference', generatedResult: 'Generated result', noRecentResults: 'No recent results available.', doneSelected: 'Done · ${count} selected', recentGenerations: 'Recent generations', noGenerationJobs: 'No generation jobs yet.', saveGeneratedImageAsNew: 'Save as new reference', saveGeneratedResultPreview: 'Generated result preview', originalPromptLanguage: 'Original prompt language', confirmSave: 'Save',
     referenceDetails: 'Reference details', libraryModelLabel: 'Library model label', saveAndContinue: 'Save and continue', continueReview: 'Continue review (${count})', generationRecord: 'Generation record', originalItem: 'Original item', batchPosition: 'Batch position', reviewComplete: 'Batch review complete', reviewSaved: 'Saved', reviewAttached: 'Attached', reviewDiscarded: 'Discarded', reviewRetrying: 'Regenerating', reviewGenerating: 'Generating', reviewFailedOrCancelled: 'Failed / cancelled',
-    filters: 'Filters', searchAria: 'Search all prompts', searchPlaceholder: 'Search prompts…', config: 'Config', referencesShown: 'references', collectionChip: 'Collection', sortChip: 'Sort', sortByUpdated: 'Recently updated', sortByCreated: 'Recently added', sortByOldest: 'Oldest first', sortByTitle: 'Title A–Z', sortByTitleDesc: 'Title Z-A', sortBySource: 'Source A-Z', sortByModel: 'Model A-Z',
+    filters: 'Filters', searchAria: 'Search all prompts', searchPlaceholder: 'Search prompts…', clearSearch: 'Clear search', removeFilter: 'Remove filter', allTags: 'All tags', allModels: 'All models', favoritesOnly: 'Favorites only', imageAspect: 'Cover shape', allAspects: 'All shapes', aspectPortrait: 'Portrait', aspectSquare: 'Square', aspectLandscape: 'Landscape', config: 'Config', referencesShown: 'references', collectionChip: 'Collection', sortChip: 'Sort', sortByUpdated: 'Recently updated', sortByCreated: 'Recently added', sortByOldest: 'Oldest first', sortByTitle: 'Title A–Z', sortByTitleDesc: 'Title Z-A', sortBySource: 'Source A-Z', sortByModel: 'Model A-Z',
     explore: 'Explore', cards: 'Library', uiLanguage: 'UI language', promptCopyLanguage: 'Prompt copy language', promptCopyLanguageHelp: 'Copy can use the origin prompt; the source/original prompt is usually closest to the sample image result.', providers: 'Providers',
     libraryPath: 'Library path', databasePath: 'Database path',
     libraryEmptyTitle: 'Your library is empty', libraryEmptyHelp: 'Add your first prompt, or install the sample library if you want demo content first.', noMatchingPrompts: 'No matching prompts', noMatchingPromptsHelp: 'Try another search, clear filters, or add a new prompt reference.', addFirstPrompt: 'Add your first prompt', firstRunEmptyTitle: 'Your private library is empty', firstRunEmptyHelp: 'That is expected after a fresh local install. Add a prompt, import optional samples, or connect generation when you are ready.', firstRunOpenConfig: 'Open Config', firstRunLocalInstall: 'Local install', firstRunSampleCommand: 'image-prompt-library sample-data en', firstRunSampleHelp: 'Optional: run this command in Terminal to add starter references.', firstRunGenerationHelp: 'Optional generation lives in Config and requires a supported OAuth provider.',
@@ -217,7 +217,7 @@ const TRANSLATIONS: Record<UiLanguage, Record<TranslationKey, string>> = {
     localSetupHelp: 'Version, data locations, and local diagnostics.',
     appearance: 'Appearance',
     appearanceHelp: 'Choose an interface accent. Images and Library content are unchanged.',
-    appearanceGalleryVermilion: 'Red',
+    appearanceGalleryVermilion: 'Red', colorTheme: 'Color theme', themeSystem: 'System', themeLight: 'Light', themeDark: 'Dark',
     appearancePineArchive: 'Green',
     appearanceAubergineInk: 'Purple',
     appVersion: 'App version',
@@ -235,7 +235,7 @@ const TRANSLATIONS: Record<UiLanguage, Record<TranslationKey, string>> = {
     doctorCommandHelp: 'Detailed diagnostics',
     copyPrompt: 'Copy prompt', favorite: 'Favorite', unfavorite: 'Unfavorite', saved: 'Saved', edit: 'Edit', moreActions: 'More actions', batchMoreActions: 'More', noImage: 'No image', unclustered: 'Unclustered',
     collections: 'Collections', closeFilters: 'Close filters', searchCollections: 'Search collections', searchResults: 'Search results', allReferences: 'All references', noCollectionsFound: 'No collections found',
-    loading: 'Loading…', loadFailed: 'Load failed.', retry: 'Retry', copySuccess: 'Prompt copied', copyFailed: 'Copy failed', add: 'Add', close: 'Close', closeConfig: 'Close config',
+    loading: 'Loading…', loadFailed: 'Load failed.', retry: 'Retry', pullToRefresh: 'Pull to refresh', releaseToRefresh: 'Release to refresh', copySuccess: 'Prompt copied', copyFailed: 'Copy failed', add: 'Add', close: 'Close', closeConfig: 'Close config',
     newReference: 'New reference', updateReference: 'Update reference', addPromptCard: 'Add prompt card', editPromptCard: 'Edit prompt card', editorHelp: 'Keep the image, collection, tags, and prompts together.',
     title: 'Title', titlePlaceholder: 'Give this reference a memorable name', collection: 'Collection', collectionPlaceholder: 'e.g. Product commercial', tags: 'Tags', tagsPlaceholder: 'poster, product, cinematic', existingTagSuggestions: 'Existing tag suggestions',
     traditionalChinesePrompt: 'Traditional Chinese prompt', traditionalPromptPlaceholder: 'Paste the Traditional Chinese prompt…', simplifiedChinesePrompt: 'Simplified Chinese prompt', simplifiedPromptPlaceholder: 'Paste the Simplified Chinese prompt…', englishPrompt: 'English prompt', englishPromptPlaceholder: 'Paste the English prompt…',
@@ -244,7 +244,7 @@ const TRANSLATIONS: Record<UiLanguage, Record<TranslationKey, string>> = {
     batchTagTitle: 'Tag selected references', batchMoveTitle: 'Move selected references', searchOrCreateTags: 'Search or create tags', selectedTags: 'Selected tags', createTag: 'Create “${tag}”', noTagsFound: 'No tags found', applyTags: 'Apply tags', moveReferences: 'Move references',
     primaryNavigation: 'Primary navigation', appHome: 'Image Prompt Library home', currentFilters: 'Current filters', preferredPromptLanguage: 'Preferred prompt language',
     collectionFilters: 'Collection filters', itemActions: 'Item actions', promptLanguage: 'Prompt language', promptText: 'Prompt text', source: 'Source', defaultModel: 'ChatGPT Image', localReference: 'Local reference',
-    imageGeneratedFrom: 'Image generated from', generatedWith: 'Generated with', author: 'Author', sourceUrl: 'Source URL', notes: 'Notes', addNote: 'Add note', origin: 'Origin', markAsOriginal: 'Mark as origin', originalPromptHelp: 'The source/original prompt is usually closest to the sample image result.',
+    imageGeneratedFrom: 'Image generated from', generatedWith: 'Generated with', author: 'Author', sourceUrl: 'Source URL', notes: 'Notes', addNote: 'Add note', origin: 'Origin', sourceChinese: 'Chinese', sourceJapanese: 'Japanese', markAsOriginal: 'Mark as origin', originalPromptHelp: 'The source/original prompt is usually closest to the sample image result.',
     more: 'Show more',
     onlineReadOnlyDemo: 'Online Read Only Demo', runLocallyForPrivateLibrary: 'Add/edit/generation require local install; run locally to create your private prompt library.', localInstallHighlights: 'Local install adds private editing, multi-image generation, and complete backup and restore', viewOnGitHub: 'View on GitHub',
     chooseLanguage: 'Choose your language', chooseLanguageHelp: 'Choose the interface language you want to use.', changeLanguageLater: 'You can change this later in Config.',

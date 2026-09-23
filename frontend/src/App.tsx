@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type TouchEvent } from 'react';
 import { flushSync } from 'react-dom';
 import { Archive, ArchiveRestore, Check, Ellipsis, FolderInput, Plus, Star, Tags, Trash2, XCircle } from 'lucide-react';
 import { api, isDemoMode } from './api/client';
@@ -15,14 +15,16 @@ import BatchActionDialog from './components/BatchActionDialog';
 import { useDebouncedValue } from './hooks/useDebouncedValue';
 import { useItemsQuery } from './hooks/useItemsQuery';
 import { useModalFocus } from './hooks/useModalFocus';
-import type { AppearancePreset, AppConfig, AppUpdateStatus, ClusterRecord, GenerationJobRecord, ItemBatchAction, ItemDetail, ItemSortMode, ItemSummary, TagRecord, TitleSuggestionProvider, ViewMode } from './types';
+import type { AppearancePreset, AppConfig, AppUpdateStatus, ClusterRecord, GenerationJobRecord, ImageAspectFilter, ItemBatchAction, ItemDetail, ItemSortMode, ItemSummary, TagRecord, ThemeMode, TitleSuggestionProvider, ViewMode } from './types';
 import { copyTextToClipboard } from './utils/clipboard';
 import { DEFAULT_AI_PROVIDER_STORAGE_KEY, availableTitleSuggestionProviders, isTitleSuggestionProvider, resolveDefaultAiProvider } from './utils/defaultAiProvider';
 import { localizedDemoTitle } from './utils/demoTitles';
 import { APPEARANCE_STORAGE_KEY, applyAppearance, loadAppearance } from './utils/appearance';
 import { DEFAULT_UI_LANGUAGE, UI_LANGUAGE_LABELS, makeTranslator, normalizeUiLanguage, type UiLanguage } from './utils/i18n';
 import { DEFAULT_PROMPT_LANGUAGE, normalizePromptLanguage, resolvePromptText, type PromptCopyLanguage } from './utils/prompts';
-import { DEFAULT_ITEM_SORT, parseSearchSortQuery, parseStructuredSearchChips, removeSearchSortOperator } from './utils/searchSort';
+import { DEFAULT_ITEM_SORT, parseSearchSortQuery, parseStructuredSearchChips, removeSearchSortOperator, removeStructuredSearchChip } from './utils/searchSort';
+import { PULL_REFRESH_THRESHOLD, pullRefreshDistance } from './utils/pullRefresh';
+import { THEME_STORAGE_KEY, applyTheme, loadTheme } from './utils/theme';
 
 const UI_LANGUAGE_STORAGE_KEY = 'image-prompt-library.ui_language';
 const PROMPT_LANGUAGE_STORAGE_KEY = 'image-prompt-library.preferred_prompt_language';
@@ -101,14 +103,23 @@ export default function App() {
   const [libraryTotal, setLibraryTotal] = useState<number>();
   const libraryTotalRequestRef = useRef(0);
   const [tags, setTags] = useState<TagRecord[]>([]);
+  const [models, setModels] = useState<string[]>([]);
+  const [tagId, setTagId] = useState<string>();
+  const [modelFilter, setModelFilter] = useState<string>();
+  const [aspectFilter, setAspectFilter] = useState<ImageAspectFilter>();
+  const [favoriteOnly, setFavoriteOnly] = useState(false);
   const [detailId, setDetailId] = useState<string>();
   const [editing, setEditing] = useState<ItemDetail | undefined>();
   const [editorOpen, setEditorOpen] = useState(false);
   const [itemsReloadKey, setItemsReloadKey] = useState(0);
+  const pullStartRef = useRef<{ x: number; y: number } | undefined>(undefined);
+  const pullDistanceRef = useRef(0);
+  const [pullDistance, setPullDistance] = useState(0);
   const [uiLanguage, setUiLanguage] = useState<UiLanguage>(loadUiLanguage);
   const [hasChosenUiLanguage, setHasChosenUiLanguage] = useState(loadHasChosenUiLanguage);
   const [preferredLanguage, setPreferredLanguage] = useState<PromptCopyLanguage>(loadPreferredLanguage);
   const [appearance, setAppearance] = useState<AppearancePreset>(loadAppearance);
+  const [theme, setTheme] = useState<ThemeMode>(loadTheme);
   const [defaultAiProvider, setDefaultAiProvider] = useState<TitleSuggestionProvider>(loadDefaultAiProvider);
   const [toast, setToast] = useState<{ title: string; tone: 'success' | 'error'; duration?: number }>();
   const [toastClosing, setToastClosing] = useState(false);
@@ -132,9 +143,13 @@ export default function App() {
   const detailDeleteInFlightRef = useRef(false);
   const [updateStatus, setUpdateStatus] = useState<AppUpdateStatus>();
   const [restartRequiredVersion, setRestartRequiredVersion] = useState<string>();
-  const { data, loading, initialLoading, refreshing, error, dataScope } = useItemsQuery(parsedSearchQuery.q, clusterId, undefined, 1000, itemsReloadKey, activeSort);
+  const { data, loading, initialLoading, refreshing, error, dataScope } = useItemsQuery(parsedSearchQuery.q, clusterId, tagId, 1000, itemsReloadKey, activeSort, modelFilter, favoriteOnly || undefined, aspectFilter);
   const dataScopeMatches = dataScope.q === parsedSearchQuery.q
     && dataScope.clusterId === clusterId
+    && dataScope.tag === tagId
+    && dataScope.model === modelFilter
+    && dataScope.aspect === aspectFilter
+    && dataScope.favorite === (favoriteOnly || undefined)
     && dataScope.viewLimit === 1000
     && dataScope.sort === activeSort;
   const selectedCluster = useMemo(() => clusters.find(c => c.id === clusterId), [clusters, clusterId]);
@@ -151,6 +166,14 @@ export default function App() {
   useEffect(() => {
     applyAppearance(appearance);
   }, [appearance]);
+  useEffect(() => {
+    applyTheme(theme);
+    if (theme !== 'system') return undefined;
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    const onSystemThemeChange = () => applyTheme('system');
+    media.addEventListener('change', onSystemThemeChange);
+    return () => media.removeEventListener('change', onSystemThemeChange);
+  }, [theme]);
   useEffect(() => {
     if (typeof window === 'undefined' || isTitleSuggestionProvider(window.localStorage.getItem(DEFAULT_AI_PROVIDER_STORAGE_KEY))) return undefined;
     let cancelled = false;
@@ -209,6 +232,7 @@ export default function App() {
     }
   }, []);
   const refreshTags = () => api.tags().then(setTags).catch(() => setTags([]));
+  const refreshModels = () => api.models().then(setModels).catch(() => setModels([]));
   const refreshAppConfig = () => api.config().then(setAppConfig).catch(() => setAppConfig(undefined));
   const refreshUpdateStatus = useCallback((refresh = false) => api.updateStatus(refresh).then(status => {
     setUpdateStatus(status);
@@ -238,7 +262,7 @@ export default function App() {
       setUpdateStatus(current => current ? { ...current, update_available: false } : current);
     }
   }, []);
-  useEffect(() => { refreshClusters(); refreshLibraryTotal(); refreshTags(); refreshAppConfig(); refreshUpdateStatus(); }, [refreshClusters, refreshLibraryTotal, refreshUpdateStatus]);
+  useEffect(() => { refreshClusters(); refreshLibraryTotal(); refreshTags(); refreshModels(); refreshAppConfig(); refreshUpdateStatus(); }, [refreshClusters, refreshLibraryTotal, refreshUpdateStatus]);
   useEffect(() => {
     if (isDemoMode || !FRONTEND_BUILD_VERSION || FRONTEND_BUILD_VERSION === 'demo') return;
     api.health().then(({ version: serverVersion }) => {
@@ -279,7 +303,9 @@ export default function App() {
   const selectCluster = (c: ClusterRecord) => { setClusterId(c.id); updateView('cards'); };
   const handleFilterSelect = (c: ClusterRecord) => selectCluster(c);
   const clearCluster = () => setClusterId(undefined);
-  const saved = () => { refreshClusters(); refreshLibraryTotal(); refreshTags(); setItemsReloadKey(k => k + 1); };
+  const clearFilters = () => { setClusterId(undefined); setTagId(undefined); setModelFilter(undefined); setAspectFilter(undefined); setFavoriteOnly(false); };
+  const refreshLibraryData = () => { refreshClusters(); refreshLibraryTotal(); refreshTags(); refreshModels(); setItemsReloadKey(k => k + 1); };
+  const saved = refreshLibraryData;
   const clearSelection = () => setSelectedItemIds(new Set());
   const exitSelectionMode = () => { setBatchActionDialog(undefined); setSelectionActionsOpen(false); setSelectionMode(false); clearSelection(); };
   const deleted = () => { setDetailId(undefined); setEditing(undefined); setFocusedGenerationJobId(undefined); setGenerationSourceItem(undefined); exitSelectionMode(); refreshClusters(); refreshLibraryTotal(); refreshTags(); setItemsReloadKey(k => k + 1); };
@@ -295,6 +321,10 @@ export default function App() {
   const updateAppearance = (nextAppearance: AppearancePreset) => {
     setAppearance(nextAppearance);
     window.localStorage.setItem(APPEARANCE_STORAGE_KEY, nextAppearance);
+  };
+  const updateTheme = (nextTheme: ThemeMode) => {
+    setTheme(nextTheme);
+    try { window.localStorage.setItem(THEME_STORAGE_KEY, nextTheme); } catch { /* Browser storage may be disabled. */ }
   };
   const updateDefaultAiProvider = (provider: TitleSuggestionProvider) => {
     setDefaultAiProvider(provider);
@@ -364,7 +394,7 @@ export default function App() {
     || (loading && !dataScopeMatches)
     || (view === 'explore' && !parsedSearchQuery.q.trim() && clustersLoading);
   const emptyMode = currentScopeSettled
-    ? (!isDemoMode && localizedData.items.length === 0 && !q.trim() && !clusterId ? 'first-run' : 'no-results')
+    ? (!isDemoMode && localizedData.items.length === 0 && !q.trim() && !clusterId && !tagId && !modelFilter && !aspectFilter && !favoriteOnly ? 'first-run' : 'no-results')
     : undefined;
   const openNewItemEditor = () => { generationJobRequestRef.current += 1; cancelPendingEdit(); setEditing(undefined); setEditorOpen(true); };
   const openFilters = () => { generationJobRequestRef.current += 1; cancelPendingEdit(); setConfigOpen(false); setFocusConfigProviders(false); setGenerationQueueOpen(false); setFiltersOpen(true); };
@@ -433,6 +463,52 @@ export default function App() {
     setDetailId(undefined);
     setFocusedGenerationJobId(undefined);
   };
+  // One same-URL history entry lets Android Back dismiss the top-level surface.
+  // Programmatic closes consume that entry; a popstate close must not go back twice.
+  const overlayKind = batchActionDialog || (configOpen && 'config') || (standaloneGenerationOpen && 'generation') || (editorOpen && 'editor')
+    || (detailId && `detail:${detailId}`) || (generationQueueOpen && 'queue')
+    || (filtersOpen && 'filters') || '';
+  const overlayHistoryOwnedRef = useRef(false);
+  const overlayBackPendingRef = useRef(false);
+  const overlayKindRef = useRef(overlayKind);
+  const closeOverlayRef = useRef<() => void>(() => undefined);
+  overlayKindRef.current = overlayKind;
+  closeOverlayRef.current = () => {
+    if (batchActionDialog) setBatchActionDialog(undefined);
+    else if (configOpen) closeConfig();
+    else if (standaloneGenerationOpen) closeStandaloneGeneration();
+    else if (editorOpen) setEditorOpen(false);
+    else if (detailId) closeItemDetail();
+    else if (generationQueueOpen) closeGenerationQueue();
+    else if (filtersOpen) setFiltersOpen(false);
+  };
+  useEffect(() => {
+    if (overlayKind && !overlayHistoryOwnedRef.current && !overlayBackPendingRef.current) {
+      window.history.pushState({ ...window.history.state, imagePromptLibraryOverlay: true }, '');
+      overlayHistoryOwnedRef.current = true;
+    } else if (!overlayKind && overlayHistoryOwnedRef.current) {
+      overlayHistoryOwnedRef.current = false;
+      overlayBackPendingRef.current = true;
+      window.history.back();
+    }
+  }, [overlayKind]);
+  useEffect(() => {
+    const handleOverlayBack = () => {
+      if (overlayBackPendingRef.current) {
+        overlayBackPendingRef.current = false;
+        if (overlayKindRef.current) {
+          window.history.pushState({ ...window.history.state, imagePromptLibraryOverlay: true }, '');
+          overlayHistoryOwnedRef.current = true;
+        }
+        return;
+      }
+      if (!overlayHistoryOwnedRef.current) return;
+      overlayHistoryOwnedRef.current = false;
+      if (overlayKindRef.current) closeOverlayRef.current();
+    };
+    window.addEventListener('popstate', handleOverlayBack);
+    return () => window.removeEventListener('popstate', handleOverlayBack);
+  }, []);
   const favorite = (id: string) => { api.favorite(id).then(saved).catch(() => undefined); };
   const toggleSelectedItem = (id: string) => {
     setSelectedItemIds(current => {
@@ -521,12 +597,38 @@ export default function App() {
   const blockingModalOpen = !hasChosenUiLanguage || Boolean(detailId || editorOpen || standaloneGenerationOpen || batchActionDialog);
   const showFloatingActions = Boolean(hasChosenUiLanguage && !selectionMode && !filtersOpen && !configOpen && !detailId);
   const floatingActionsHidden = editorOpen || standaloneGenerationOpen;
+  const resetPull = () => { pullStartRef.current = undefined; pullDistanceRef.current = 0; setPullDistance(0); };
+  const startPull = (event: TouchEvent<HTMLDivElement>) => {
+    const target = event.target;
+    if (window.innerWidth > 760 || event.touches.length !== 1 || loading || refreshing || blockingModalOpen || drawerModalOpen
+      || window.scrollY > 1 || !(target instanceof Element) || !target.closest('.app-main')
+      || target.closest('button,a,input,textarea,select,[contenteditable="true"],.active-filter-strip')) return;
+    pullStartRef.current = { x: event.touches[0].clientX, y: event.touches[0].clientY };
+  };
+  const movePull = (event: TouchEvent<HTMLDivElement>) => {
+    const start = pullStartRef.current;
+    if (!start || event.touches.length !== 1) return;
+    const distance = pullRefreshDistance(event.touches[0].clientX - start.x, event.touches[0].clientY - start.y, window.scrollY <= 1);
+    if (pullDistanceRef.current !== distance) { pullDistanceRef.current = distance; setPullDistance(distance); }
+  };
+  const finishPull = () => {
+    if (!pullStartRef.current) return;
+    const shouldRefresh = pullStartRef.current && pullDistanceRef.current >= PULL_REFRESH_THRESHOLD;
+    resetPull();
+    if (shouldRefresh) refreshLibraryData();
+  };
   const updateBadgeLabel = restartRequiredVersion
     ? t('restartRequired')
     : (updateStatus?.update_available && updateStatus.update_capability !== 'source' ? t('updateAvailable') : undefined);
-  return <div className={`app ${view === 'explore' ? 'explore-mode' : 'cards-mode'}`}>
-    <FiltersPanel t={t} open={filtersOpen} clusters={localizedClusters} total={libraryTotal} selected={clusterId} onSelect={handleFilterSelect} onClear={clearCluster} onClose={() => setFiltersOpen(false)} />
-    <ConfigPanel t={t} open={configOpen} focusProviders={focusConfigProviders} onClose={closeConfig} uiLanguage={uiLanguage} onUiLanguage={updateUiLanguage} preferredLanguage={preferredLanguage} onPreferredLanguage={updatePreferredLanguage} appearance={appearance} onAppearance={updateAppearance} defaultAiProvider={defaultAiProvider} onDefaultAiProvider={updateDefaultAiProvider} updateStatus={updateStatus} onRefreshUpdateStatus={refreshUpdateStatus} onUpdateInstalled={handleUpdateInstalled} onLibraryCleanup={saved} />
+  const facetChips = [
+    selectedCluster && { id: 'cluster', label: localizedClusterName(selectedCluster, uiLanguage) },
+    tagId && { id: 'tag', label: `#${tags.find(tag => tag.id === tagId)?.name || tagId}` },
+    modelFilter && { id: 'model', label: modelFilter },
+    aspectFilter && { id: 'aspect', label: t(aspectFilter === 'portrait' ? 'aspectPortrait' : aspectFilter === 'landscape' ? 'aspectLandscape' : 'aspectSquare') },
+  ].filter((chip): chip is { id: string; label: string } => Boolean(chip));
+  return <div className={`app ${view === 'explore' ? 'explore-mode' : 'cards-mode'}`} onTouchStart={startPull} onTouchMove={movePull} onTouchEnd={finishPull} onTouchCancel={resetPull}>
+    <FiltersPanel t={t} open={filtersOpen} clusters={localizedClusters} tags={tags} models={models} total={libraryTotal} selected={clusterId} selectedTag={tagId} selectedModel={modelFilter} selectedAspect={aspectFilter} favoriteOnly={favoriteOnly} onSelect={handleFilterSelect} onTag={value => { setTagId(value); updateView('cards'); }} onModel={value => { setModelFilter(value); updateView('cards'); }} onAspect={value => { setAspectFilter(value); updateView('cards'); }} onFavorite={value => { setFavoriteOnly(value); updateView('cards'); }} onClear={clearFilters} onClose={() => setFiltersOpen(false)} />
+    <ConfigPanel t={t} open={configOpen} focusProviders={focusConfigProviders} onClose={closeConfig} uiLanguage={uiLanguage} onUiLanguage={updateUiLanguage} preferredLanguage={preferredLanguage} onPreferredLanguage={updatePreferredLanguage} appearance={appearance} onAppearance={updateAppearance} theme={theme} onTheme={updateTheme} defaultAiProvider={defaultAiProvider} onDefaultAiProvider={updateDefaultAiProvider} updateStatus={updateStatus} onRefreshUpdateStatus={refreshUpdateStatus} onUpdateInstalled={handleUpdateInstalled} onLibraryCleanup={saved} />
     <div className="app-content" inert={drawerModalOpen}>
     {!hasChosenUiLanguage && (
       <div ref={firstRunLanguageRef} className="first-run-language-overlay" role="dialog" aria-modal="true" aria-labelledby="first-run-language-title" tabIndex={-1} onKeyDown={handleFirstRunLanguageKeyDown}>
@@ -543,7 +645,7 @@ export default function App() {
         </section>
       </div>
     )}
-    <TopBar t={t} q={q} queryFilterChips={queryFilterChips} updateBadgeLabel={updateBadgeLabel} onQ={setQ} view={view} onView={updateView} onFilters={openFilters} onConfig={openConfig} filtersOpen={filtersOpen} configOpen={configOpen} hasActiveFilter={Boolean(selectedCluster)} modalOpen={blockingModalOpen} />
+    <TopBar t={t} q={q} queryFilterChips={queryFilterChips} facetChips={facetChips} onRemoveFacet={id => { if (id === 'cluster') setClusterId(undefined); if (id === 'tag') setTagId(undefined); if (id === 'model') setModelFilter(undefined); if (id === 'aspect') setAspectFilter(undefined); }} updateBadgeLabel={updateBadgeLabel} onQ={setQ} onRemoveFilter={chip => setQ(current => removeStructuredSearchChip(current, chip))} favoriteOnly={favoriteOnly} onFavorite={() => { setFavoriteOnly(value => !value); updateView('cards'); }} view={view} onView={updateView} onFilters={openFilters} onConfig={openConfig} filtersOpen={filtersOpen} configOpen={configOpen} hasActiveFilter={Boolean(selectedCluster || tagId || modelFilter || aspectFilter || favoriteOnly)} modalOpen={blockingModalOpen} />
     <div className={`content-plane${viewTransition ? ` ${viewTransition}` : ''}`} inert={blockingModalOpen} aria-hidden={blockingModalOpen || undefined}>
     {isDemoMode && (
       <div className="demo-banner" role="status">
@@ -555,6 +657,7 @@ export default function App() {
     )}
     {/* Static-test compatibility marker: <main className="app-main"> */}
     <main className={`app-main ${refreshing ? 'is-refreshing' : ''}${loading && !dataScopeMatches ? ' is-scope-loading' : ''}`} aria-busy={loading}>
+      {pullDistance > 20 && <div className="pull-refresh-indicator" role="status">{pullDistance >= PULL_REFRESH_THRESHOLD ? t('releaseToRefresh') : t('pullToRefresh')}</div>}
       {refreshing && <div className="refresh-indicator" role="status">{t('loading')}</div>}
       {error && (
         <div className="error" role="alert">
@@ -563,7 +666,7 @@ export default function App() {
         </div>
       )}
       {(!error || localizedData.items.length > 0) && (view === 'explore'
-        ? <ExploreView t={t} clusters={localizedClusters} items={localizedData.items} total={localizedData.total} hasActiveSearch={Boolean(parsedSearchQuery.q.trim())} searchQuery={parsedSearchQuery.q} loading={contentLoading} sort={activeSort} onSort={updateSort} onOpenCollection={selectCluster} onOpen={setDetailId} onCopyPrompt={copyPrompt} onAdd={isDemoMode ? undefined : openNewItemEditor} />
+        ? <ExploreView t={t} clusters={localizedClusters} items={localizedData.items} total={localizedData.total} hasActiveSearch={Boolean(parsedSearchQuery.q.trim() || tagId || modelFilter || aspectFilter || favoriteOnly)} searchQuery={parsedSearchQuery.q} loading={contentLoading} sort={activeSort} onSort={updateSort} onOpenCollection={selectCluster} onOpen={setDetailId} onCopyPrompt={copyPrompt} onAdd={isDemoMode ? undefined : openNewItemEditor} />
         : <CardsView t={t} items={localizedData.items} loading={contentLoading} emptyMode={emptyMode} total={localizedData.total} sort={activeSort} onSort={updateSort} clusterName={localizedClusterName(selectedCluster, uiLanguage)} hasActiveSearch={Boolean(parsedSearchQuery.q.trim())} onClearCluster={clearCluster} onOpen={setDetailId} onFavorite={isDemoMode ? undefined : favorite} onEdit={isDemoMode ? undefined : editSummary} editingItemId={editingItemId} onToggleSelection={selectionMode ? toggleSelectedItem : undefined} selectedIds={selectedItemIds} onCopyPrompt={copyPrompt} onAdd={isDemoMode ? undefined : openNewItemEditor} onOpenConfig={openConfig} />)}
     </main>
     </div>

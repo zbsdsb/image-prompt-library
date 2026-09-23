@@ -33,6 +33,40 @@ def create_payload(**overrides):
     return payload
 
 
+def test_mobile_filter_facets_and_combined_query(tmp_path):
+    c = client(tmp_path)
+    first = c.post("/api/items", json=create_payload(model="GPT Image 2", tags=["soft light"])).json()
+    c.post("/api/items", json=create_payload(title="Second image", model="Other Model", tags=["portrait"]))
+    assert c.post(f"/api/items/{first['id']}/favorite").status_code == 200
+
+    assert c.get("/api/items/models").json() == ["GPT Image 2", "Other Model"]
+    response = c.get("/api/items", params={"model": "GPT Image 2", "tag": "soft light", "favorite": "true"})
+    assert response.status_code == 200
+    assert [item["id"] for item in response.json()["items"]] == [first["id"]]
+    assert c.get("/api/items", params={"model": "Other Model", "favorite": "true"}).json()["total"] == 0
+
+
+def test_aspect_filter_uses_cover_image_and_excludes_unknown_dimensions(tmp_path):
+    c = client(tmp_path)
+    portrait = c.post("/api/items", json=create_payload(title="Portrait")).json()
+    square = c.post("/api/items", json=create_payload(title="Square")).json()
+    landscape = c.post("/api/items", json=create_payload(title="Landscape")).json()
+    c.post("/api/items", json=create_payload(title="No image"))
+    for item, size in ((portrait, (40, 80)), (square, (100, 104)), (landscape, (120, 60))):
+        response = c.post(f"/api/items/{item['id']}/images", data={"role": "result_image"}, files={"file": ("cover.png", png_bytes(size), "image/png")})
+        assert response.status_code == 200
+    # A reference image must not override the visible result-image cover.
+    assert c.post(f"/api/items/{portrait['id']}/images", data={"role": "reference_image"}, files={"file": ("reference.png", png_bytes((90, 30)), "image/png")}).status_code == 200
+    with connect(tmp_path / "library") as conn:
+        conn.execute("UPDATE images SET width=NULL WHERE item_id=?", (landscape["id"],))
+        conn.commit()
+
+    assert [item["id"] for item in c.get("/api/items", params={"aspect": "portrait"}).json()["items"]] == [portrait["id"]]
+    assert [item["id"] for item in c.get("/api/items", params={"aspect": "square"}).json()["items"]] == [square["id"]]
+    assert c.get("/api/items", params={"aspect": "landscape"}).json()["total"] == 0
+    assert c.get("/api/items", params={"aspect": "panorama"}).status_code == 422
+
+
 def test_api_rejects_explicit_prompt_provenance_without_exactly_one_original(tmp_path):
     c = client(tmp_path)
     zero_original = create_payload(prompts=[
@@ -253,6 +287,31 @@ def test_extended_item_sort_modes(tmp_path):
     assert [item["title"] for item in c.get("/api/items", params={"sort": "title_desc"}).json()["items"]] == ["Gamma Sort", "Beta Sort", "Alpha Sort"]
     assert [item["title"] for item in c.get("/api/items", params={"sort": "source_asc"}).json()["items"]] == ["Gamma Sort", "Alpha Sort", "Beta Sort"]
     assert [item["title"] for item in c.get("/api/items", params={"sort": "model_asc"}).json()["items"]] == ["Beta Sort", "Alpha Sort", "Gamma Sort"]
+
+
+def test_text_only_items_sink_below_items_with_images_in_every_sort_mode(tmp_path):
+    """Prompts imported without art must never lead the grid in any sort order."""
+    c = client(tmp_path)
+    with_image = c.post("/api/items", json=create_payload(title="Zulu With Art", source_url="https://example.test/with-art")).json()
+    text_only = c.post("/api/items", json=create_payload(title="Alpha Text Only", source_url="https://example.test/text-only")).json()
+    c.post(
+        f"/api/items/{with_image['id']}/images",
+        data={"role": "result_image"},
+        files={"file": ("result.png", png_bytes(), "image/png")},
+    )
+    with connect(tmp_path / "library") as conn:
+        # The text-only entry is the most recently updated and sorts first by title,
+        # so it would lead the grid if media presence were not the primary key.
+        conn.execute("UPDATE items SET updated_at=? WHERE id=?", ("2026-06-01T00:00:00+00:00", text_only["id"]))
+        conn.execute("UPDATE items SET updated_at=? WHERE id=?", ("2026-01-01T00:00:00+00:00", with_image["id"]))
+        conn.commit()
+
+    for sort in ("updated_desc", "title_asc", "created_desc", "rating_desc"):
+        titles = [item["title"] for item in c.get("/api/items", params={"sort": sort}).json()["items"]]
+        assert titles == ["Zulu With Art", "Alpha Text Only"], sort
+
+    assert c.get("/api/items", params={"q": "has:no_image"}).json()["total"] == 1
+    assert c.get("/api/items", params={"q": "has:image"}).json()["total"] == 1
 
 
 def test_items_list_limit_allows_gallery_overview_scale(tmp_path):

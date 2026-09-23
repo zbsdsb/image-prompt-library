@@ -1,13 +1,13 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode, type TouchEvent } from 'react';
 import { Check, Copy, Download, ExternalLink, Heart, Maximize2, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { api, mediaUrl } from '../api/client';
 import { focusFirstAvailable } from '../hooks/useModalFocus';
 import type { ClusterRecord, ImageRecord, ItemDetail, PromptRecord, TagRecord, UiLanguage } from '../types';
 import { copyTextToClipboard } from '../utils/clipboard';
 import { localizedDemoTitle } from '../utils/demoTitles';
-import { downloadFileName, imageDisplayPath, imageHeroPath, imageOriginalPath, imageThumbnailPath, selectPrimaryImage } from '../utils/images';
+import { downloadFileName, imageDisplayPath, imageHeroPath, imageOriginalPath, imageThumbnailPath, selectPrimaryImage, swipedImageIndex } from '../utils/images';
 import type { Translator } from '../utils/i18n';
-import { PROMPT_LANGUAGE_LABELS, resolveOriginalPrompt, resolvePromptText, type PromptCopyLanguage, type PromptLanguage } from '../utils/prompts';
+import { PROMPT_LANGUAGE_LABELS, originalPromptScript, resolveOriginalPrompt, resolvePromptText, type PromptCopyLanguage, type PromptLanguage } from '../utils/prompts';
 
 const LANG_LABELS: Record<string, string> = {
   ...PROMPT_LANGUAGE_LABELS,
@@ -228,6 +228,7 @@ export default function ItemDetailModal({
   const [isHeroFullscreen, setIsHeroFullscreen] = useState(false);
   const lastDefaultPromptKeyRef = useRef('');
   const heroImageRef = useRef<HTMLImageElement | null>(null);
+  const touchStartRef = useRef<{ x: number; y: number } | undefined>(undefined);
   const heroFullscreenFrameRef = useRef<HTMLDivElement | null>(null);
   const heroFullscreenTriggerRef = useRef<HTMLButtonElement | null>(null);
   const heroFullscreenCloseRef = useRef<HTMLButtonElement | null>(null);
@@ -344,6 +345,20 @@ export default function ItemDetailModal({
   const selectedImage = uniqueImages.find(image => image.id === selectedImageId) || primaryImage;
   const selectedImageGenerationSource = generationSourceLabel(selectedImage);
   const selectedImageIndex = selectedImage ? uniqueImages.findIndex(image => image.id === selectedImage.id) : -1;
+  const startImageSwipe = (event: TouchEvent<HTMLElement>) => {
+    if (event.touches.length !== 1 || (event.target as HTMLElement).closest('button,a,.image-gallery-rail')) {
+      touchStartRef.current = undefined;
+      return;
+    }
+    touchStartRef.current = { x: event.touches[0].clientX, y: event.touches[0].clientY };
+  };
+  const finishImageSwipe = (event: TouchEvent<HTMLElement>) => {
+    const start = touchStartRef.current;
+    touchStartRef.current = undefined;
+    if (!start || event.changedTouches.length !== 1 || selectedImageIndex < 0) return;
+    const next = swipedImageIndex(selectedImageIndex, uniqueImages.length, event.changedTouches[0].clientX - start.x, event.changedTouches[0].clientY - start.y);
+    if (next !== selectedImageIndex) setSelectedImageId(uniqueImages[next].id);
+  };
   const heroStyle = selectedImage?.width && selectedImage.height
     ? ({ '--detail-image-aspect-ratio': `${selectedImage.width} / ${selectedImage.height}` } as CSSProperties)
     : undefined;
@@ -498,6 +513,9 @@ export default function ItemDetailModal({
         aria-label={displayTitle || item?.title || t('loading')}
         tabIndex={-1}
       >
+        <button type="button" className="modal-icon-button detail-mobile-sticky-close" onClick={handleClose} aria-label={t('close')}>
+          <X size={20} strokeWidth={2.25} />
+        </button>
         {!item ? (
           loadError ? (
             <div className="modal-load-error" role="alert">
@@ -511,6 +529,9 @@ export default function ItemDetailModal({
               <section
                 className={`modal-hero${uniqueImages.length === 1 ? ' has-single-hero' : ''}${isHeroFullscreen ? ' is-mobile-fullscreen' : ''}`}
                 style={heroStyle}
+                onTouchStart={startImageSwipe}
+                onTouchEnd={finishImageSwipe}
+                onTouchCancel={() => { touchStartRef.current = undefined; }}
               >
                 {selectedImage ? (
                   <>
@@ -532,47 +553,52 @@ export default function ItemDetailModal({
                 ) : (
                   <div className="placeholder hero-image">{t('noImage')}</div>
                 )}
-                <div className="mobile-hero-actions" aria-label={t('itemActions')}>
-                  <button className="modal-icon-button mobile-hero-close" onClick={handleClose} aria-label={t('close')}>
-                    <X size={20} strokeWidth={2.25} />
-                  </button>
-                  {(selectedImage || showMutations) && (
-                    <span className="mobile-hero-primary-actions">
-                       {selectedImage && <a className="modal-icon-button download-button" href={mediaUrl(selectedImage.original_path || imageHeroPath(selectedImage))} download={downloadFileName(displayTitle || item.title, selectedImage?.original_path || imageHeroPath(selectedImage))} aria-label={t('download')} title={t('download')}><Download size={18} /></a>}
-                      {allowManagementActions && <button className="modal-icon-button favorite-button" onClick={toggleFavorite} aria-label={item.favorite ? t('saved') : t('favorite')}>
-                        <Heart size={18} fill={item.favorite ? 'currentColor' : 'none'} />
-                      </button>}
-                      {showMutations && <button className="modal-icon-button edit-button" onClick={() => onEdit(item)} aria-label={t('edit')}>
-                        <Pencil size={18} />
-                      </button>}
-                      {allowManagementActions && <button className="modal-icon-button detail-delete-button" onClick={handleDelete} disabled={deleteBusy} aria-label={t('deleteReference')} title={t('deleteReference')}>
-                        <Trash2 size={18} />
-                      </button>}
-                       {showMutations && canGenerate && <button className="modal-icon-button mobile-generate-variant-button" onClick={() => onGenerate(item)} aria-label={t('generateVariant')} title={t('generateVariant')}>
-                         <Plus size={18} />
-                         <span className="mobile-generate-variant-label">{t('generate')}</span>
-                      </button>}
-                    </span>
-                  )}
-                </div>
-                {uniqueImages.length > 1 && (
-                   <div className="rail glass-rail image-gallery-rail" aria-label={t('itemImages')}>
-                    {uniqueImages.map((img, index) => (
-                      <button
-                        type="button"
-                        key={getImageIdentity(img)}
-                        className={`image-gallery-thumb ${selectedImage?.id === img.id ? 'active' : ''}`}
-                        onClick={() => setSelectedImageId(img.id)}
-                         aria-label={`${t('showImage')} ${index + 1} / ${uniqueImages.length}`}
-                        aria-pressed={selectedImage?.id === img.id}
-                      >
-                        <img src={mediaUrl(imageDisplayPath(img) || imageThumbnailPath(img))} alt="" loading="lazy" decoding="async" />
-                         {isReferenceImage(img) && <span className="image-thumb-role-badge">{t('reference')}</span>}
-                      </button>
-                    ))}
-                  </div>
-                )}
               </section>
+
+              {/* The thumbnail rail used to be absolutely positioned inside the hero,
+                  where it covered the bottom ~92px of the reference image. It now
+                  sits under the artwork in normal flow, above the action row. */}
+              {uniqueImages.length > 1 && (
+                 <div className="rail glass-rail image-gallery-rail" aria-label={t('itemImages')}>
+                  {uniqueImages.map((img, index) => (
+                    <button
+                      type="button"
+                      key={getImageIdentity(img)}
+                      className={`image-gallery-thumb ${selectedImage?.id === img.id ? 'active' : ''}`}
+                      onClick={() => setSelectedImageId(img.id)}
+                       aria-label={`${t('showImage')} ${index + 1} / ${uniqueImages.length}`}
+                      aria-pressed={selectedImage?.id === img.id}
+                    >
+                      <img src={mediaUrl(imageDisplayPath(img) || imageThumbnailPath(img))} alt="" loading="lazy" decoding="async" />
+                       {isReferenceImage(img) && <span className="image-thumb-role-badge">{t('reference')}</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Sits below the artwork rather than over it: as an absolute overlay the
+                  row covered the bottom of the reference image and straddled the edge
+                  between image and sheet with no boundary of its own. */}
+              <div className="mobile-hero-actions" aria-label={t('itemActions')}>
+                {(selectedImage || showMutations) && (
+                  <span className="mobile-hero-primary-actions">
+                     {selectedImage && <a className="modal-icon-button download-button" href={mediaUrl(selectedImage.original_path || imageHeroPath(selectedImage))} download={downloadFileName(displayTitle || item.title, selectedImage?.original_path || imageHeroPath(selectedImage))} aria-label={t('download')} title={t('download')}><Download size={18} /></a>}
+                    {allowManagementActions && <button className="modal-icon-button favorite-button" onClick={toggleFavorite} aria-label={item.favorite ? t('saved') : t('favorite')}>
+                      <Heart size={18} fill={item.favorite ? 'currentColor' : 'none'} />
+                    </button>}
+                    {showMutations && <button className="modal-icon-button edit-button" onClick={() => onEdit(item)} aria-label={t('edit')}>
+                      <Pencil size={18} />
+                    </button>}
+                    {allowManagementActions && <button className="modal-icon-button detail-delete-button" onClick={handleDelete} disabled={deleteBusy} aria-label={t('deleteReference')} title={t('deleteReference')}>
+                      <Trash2 size={18} />
+                    </button>}
+                     {showMutations && canGenerate && <button className="modal-icon-button mobile-generate-variant-button" onClick={() => onGenerate(item)} aria-label={t('generateVariant')} title={t('generateVariant')}>
+                       <Plus size={18} />
+                       <span className="mobile-generate-variant-label">{t('generate')}</span>
+                    </button>}
+                  </span>
+                )}
+              </div>
 
               <aside className="detail-side">
                 <div className="detail-side-actions">
@@ -603,8 +629,10 @@ export default function ItemDetailModal({
                 </h2>
                 <p className="muted metadata-row">
                   <InlineEditableField t={t} className="metadata-inline-edit" value={item.model || t('defaultModel')} placeholder={t('imageGeneratedFrom')} onCommit={value => commitInlineUpdate({ model: value.trim() || item.model })} editable={allowManagementActions && !inlineMutationBusy} />
-                  <span>·</span>
-                  <InlineEditableField t={t} className="metadata-inline-edit" value={`@${item.author || 'User'}`} placeholder="@User" onCommit={value => commitInlineUpdate({ author: value.replace(/^@/, '').trim() || 'User' })} editable={allowManagementActions && !inlineMutationBusy} />
+                  <span className="metadata-author-group">
+                    <span aria-hidden="true">·</span>
+                    <InlineEditableField t={t} className="metadata-inline-edit" value={`@${item.author || 'User'}`} placeholder="@User" onCommit={value => commitInlineUpdate({ author: value.replace(/^@/, '').trim() || 'User' })} editable={allowManagementActions && !inlineMutationBusy} />
+                  </span>
                   {item.source_url && (
                     <a className="source-icon-link" href={item.source_url} target="_blank" rel="noreferrer" aria-label={t('source')}>
                       <ExternalLink size={16} />
@@ -627,6 +655,7 @@ export default function ItemDetailModal({
                             {promptDisplayOrder.map(promptLanguage => {
                               const tabPrompt = item.prompts.find(prompt => prompt.language === promptLanguage);
                               const isOriginalPrompt = Boolean(tabPrompt?.is_original || originalPrompt?.language === promptLanguage);
+                              const originalScript = originalPromptScript(tabPrompt);
                               return (
                                 <button
                                   type="button"
@@ -637,7 +666,7 @@ export default function ItemDetailModal({
                                   title={tabPrompt?.text.trim() ? undefined : t('promptText')}
                                   key={promptLanguage}
                                 >
-                                  {LANG_LABELS[promptLanguage] || promptLanguage}
+                                  {originalScript === 'zh' ? t('sourceChinese') : originalScript === 'ja' ? t('sourceJapanese') : LANG_LABELS[promptLanguage] || promptLanguage}
                                   {isOriginalPrompt && <span className="origin-badge">{t('origin')}</span>}
                                 </button>
                               );
