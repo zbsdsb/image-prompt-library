@@ -1939,9 +1939,15 @@ body:has(.modal-backdrop),body:has(.drawer.open),body:has(.generation-queue-draw
   .glass-rail{left:12px;right:12px;bottom:12px;border-radius:12px}
   /* Now a sibling of the hero rather than an overlay inside it, so the buttons
      sit under the artwork instead of covering its bottom edge. */
-  .mobile-hero-actions{display:block;padding:10px 14px 0;background:transparent}
+  .mobile-hero-actions{display:block;padding:12px 14px 0;background:transparent}
   .mobile-hero-actions button,.mobile-hero-actions a,.mobile-hero-primary-actions{pointer-events:auto}
-  .mobile-hero-primary-actions{position:static;display:flex;align-items:center;justify-content:flex-start;gap:7px;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  /* A left-packed row of 40px buttons left 150-355px of dead space on a 369px
+     screen depending on how many controls were available, which read as a
+     broken, unfinished bar. Share the row evenly, scrolling only when the
+     buttons would be squeezed below a comfortable target. */
+  .mobile-hero-primary-actions{position:static;display:flex;align-items:center;justify-content:flex-start;gap:8px;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .mobile-hero-primary-actions > .modal-icon-button{flex:1 1 0;min-width:44px;max-width:88px}
+  .mobile-hero-primary-actions > .mobile-generate-variant-button{flex:1 1 auto;min-width:44px}
   .mobile-hero-primary-actions > *{flex:0 0 auto}
   .mobile-hero-primary-actions::-webkit-scrollbar{display:none}
   .detail-mobile-sticky-close{position:sticky;top:calc(12px + env(safe-area-inset-top));z-index:20;display:grid;margin:calc(12px + env(safe-area-inset-top)) 12px calc(-52px - env(safe-area-inset-top)) auto}

@@ -1168,7 +1168,8 @@ test('redesign interaction guards keep overlays mutually exclusive and focus-saf
   assert.match(styles, /\.detail-layout\{[\s\S]*?grid-template-columns:minmax\(0,1fr\) clamp\(400px,32vw,440px\)/);
   assert.match(styles, /\.detail-fullscreen-overlay\{position:absolute;right:12px;top:20px/);
   assert.match(styles, /\.modal-hero \.detail-fullscreen-frame\{[^}]*position:absolute;[^}]*inset:0;[^}]*width:100%;[^}]*height:100%/);
-  assert.match(styles, /\.mobile-hero-actions\{display:block;[^}]*padding:10px 14px 0/);
+  assert.match(styles, /\.mobile-hero-actions\{display:block;[^}]*padding:12px 14px 0/);
+  assert.match(styles, /\.mobile-hero-primary-actions > \.modal-icon-button\{flex:1 1 0;min-width:44px/);
   assert.match(styles, /\.mobile-generate-variant-button\{display:inline-flex;[^}]*width:auto/);
   assert.match(styles, /@media\(max-width:760px\)\{[\s\S]*?\.detail-side-actions\{display:none\}/);
   assert.match(detail, /--detail-image-aspect-ratio/);
