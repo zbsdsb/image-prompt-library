@@ -553,24 +553,28 @@ export default function ItemDetailModal({
                 ) : (
                   <div className="placeholder hero-image">{t('noImage')}</div>
                 )}
-                {uniqueImages.length > 1 && (
-                   <div className="rail glass-rail image-gallery-rail" aria-label={t('itemImages')}>
-                    {uniqueImages.map((img, index) => (
-                      <button
-                        type="button"
-                        key={getImageIdentity(img)}
-                        className={`image-gallery-thumb ${selectedImage?.id === img.id ? 'active' : ''}`}
-                        onClick={() => setSelectedImageId(img.id)}
-                         aria-label={`${t('showImage')} ${index + 1} / ${uniqueImages.length}`}
-                        aria-pressed={selectedImage?.id === img.id}
-                      >
-                        <img src={mediaUrl(imageDisplayPath(img) || imageThumbnailPath(img))} alt="" loading="lazy" decoding="async" />
-                         {isReferenceImage(img) && <span className="image-thumb-role-badge">{t('reference')}</span>}
-                      </button>
-                    ))}
-                  </div>
-                )}
               </section>
+
+              {/* The thumbnail rail used to be absolutely positioned inside the hero,
+                  where it covered the bottom ~92px of the reference image. It now
+                  sits under the artwork in normal flow, above the action row. */}
+              {uniqueImages.length > 1 && (
+                 <div className="rail glass-rail image-gallery-rail" aria-label={t('itemImages')}>
+                  {uniqueImages.map((img, index) => (
+                    <button
+                      type="button"
+                      key={getImageIdentity(img)}
+                      className={`image-gallery-thumb ${selectedImage?.id === img.id ? 'active' : ''}`}
+                      onClick={() => setSelectedImageId(img.id)}
+                       aria-label={`${t('showImage')} ${index + 1} / ${uniqueImages.length}`}
+                      aria-pressed={selectedImage?.id === img.id}
+                    >
+                      <img src={mediaUrl(imageDisplayPath(img) || imageThumbnailPath(img))} alt="" loading="lazy" decoding="async" />
+                       {isReferenceImage(img) && <span className="image-thumb-role-badge">{t('reference')}</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
 
               {/* Sits below the artwork rather than over it: as an absolute overlay the
                   row covered the bottom of the reference image and straddled the edge
