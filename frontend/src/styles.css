@@ -1942,8 +1942,9 @@ body:has(.modal-backdrop),body:has(.drawer.open),body:has(.generation-queue-draw
   .glass-rail::-webkit-scrollbar{display:none}
   .glass-rail img{width:56px;height:56px;border:1px solid var(--studio-hairline);border-radius:8px}
   /* Now a sibling of the hero rather than an overlay inside it, so the buttons
-     sit under the artwork instead of covering its bottom edge. */
-  .mobile-hero-actions{display:block;padding:12px 14px 0;background:transparent}
+     sit under the artwork instead of covering its bottom edge. Hug the image so
+     the row reads as its toolbar rather than as a band between image and title. */
+  .mobile-hero-actions{display:block;padding:8px 14px 0;background:transparent}
   .mobile-hero-actions button,.mobile-hero-actions a,.mobile-hero-primary-actions{pointer-events:auto}
   /* A left-packed row of 40px buttons left 150-355px of dead space on a 369px
      screen depending on how many controls were available, which read as a
@@ -1960,6 +1961,9 @@ body:has(.modal-backdrop),body:has(.drawer.open),body:has(.generation-queue-draw
   .mobile-generate-variant-label{display:inline}
   .detail-side-actions{display:none}
   .detail-side{overflow:visible;padding:16px 14px calc(32px + env(safe-area-inset-bottom, 0px))}
+  /* Push the title group away from the image toolbar above it, so "image +
+     actions" and "title + metadata" read as two distinct blocks. */
+  .detail-side>.collection-inline-edit:first-child{margin-top:8px}
   .prompt-language-tabs.tabs{gap:6px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
   .prompt-language-tabs.tabs::-webkit-scrollbar{display:none}
   .prompt-language-tabs.tabs button{min-height:44px;padding:8px 12px;flex:0 0 auto;white-space:nowrap}
