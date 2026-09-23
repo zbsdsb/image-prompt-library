@@ -1,4 +1,4 @@
-import { Filter, Search, Settings } from 'lucide-react';
+import { Filter, Search, Settings, X } from 'lucide-react';
 import headerLogo from '../assets/header-logo.png';
 import type { ViewMode } from '../types';
 import type { Translator } from '../utils/i18n';
@@ -8,8 +8,13 @@ interface Props {
   q: string;
   t: Translator;
   queryFilterChips: string[];
+  facetChips: { id: string; label: string }[];
+  onRemoveFacet: (id: string) => void;
   updateBadgeLabel?: string;
   onQ: (v: string) => void;
+  onRemoveFilter: (chip: string) => void;
+  favoriteOnly: boolean;
+  onFavorite: () => void;
   view: ViewMode;
   onView: (v: ViewMode) => void;
   onFilters: () => void;
@@ -24,8 +29,13 @@ export default function TopBar({
   q,
   t,
   queryFilterChips,
+  facetChips,
+  onRemoveFacet,
   updateBadgeLabel,
   onQ,
+  onRemoveFilter,
+  favoriteOnly,
+  onFavorite,
   view,
   onView,
   onFilters,
@@ -35,8 +45,6 @@ export default function TopBar({
   hasActiveFilter = false,
   modalOpen = false,
 }: Props) {
-  const hasActiveSearch = Boolean(queryFilterChips.length);
-
   return (
     <header className="chrome" inert={modalOpen} aria-hidden={modalOpen || undefined}>
       <nav className="nav-row" aria-label={t('primaryNavigation')}>
@@ -57,14 +65,16 @@ export default function TopBar({
           <span className="filter-label">{t('filters')}</span>
         </button>
 
-        <label className="search toolbar-search" aria-label={t('searchAria')}>
+        <div className="search toolbar-search">
           <Search size={20} />
           <input
+            aria-label={t('searchAria')}
             value={q}
             onChange={event => onQ(event.target.value)}
             placeholder={t('searchPlaceholder')}
           />
-        </label>
+          {q && <button type="button" className="search-clear" onClick={() => onQ('')} aria-label={t('clearSearch')}><X size={17} /></button>}
+        </div>
 
         <div className="view-dock">
           <ViewToggle t={t} view={view} onView={onView} />
@@ -76,13 +86,13 @@ export default function TopBar({
         </button>
       </nav>
 
-      {hasActiveSearch && (
-        <div className="status-row mobile-status-view-row">
+      <div className="status-row mobile-status-view-row">
           <div className="active-filter-strip" aria-label={t('currentFilters')}>
-            {queryFilterChips.map(chip => <span key={chip} className="chip query-filter-chip">{chip}</span>)}
+            <button type="button" className={`chip query-filter-chip${favoriteOnly ? ' selected' : ''}`} onClick={onFavorite} aria-pressed={favoriteOnly}>{t('favoritesOnly')}</button>
+            {facetChips.map(chip => <button type="button" key={chip.id} className="chip query-filter-chip" onClick={() => onRemoveFacet(chip.id)} aria-label={`${t('removeFilter')}: ${chip.label}`}>{chip.label} <X size={13} /></button>)}
+            {queryFilterChips.map((chip, index) => <button type="button" key={`${chip}-${index}`} className="chip query-filter-chip" onClick={() => onRemoveFilter(chip)} aria-label={`${t('removeFilter')}: ${chip}`}>{chip} <X size={13} /></button>)}
           </div>
         </div>
-      )}
     </header>
   );
 }

@@ -20,6 +20,11 @@ export function imageOriginalPath(image?: ImageRecord) {
   return image?.original_path || image?.preview_path || image?.thumb_path || '';
 }
 
+export function swipedImageIndex(index: number, count: number, deltaX: number, deltaY: number) {
+  if (count < 2 || Math.abs(deltaX) < 48 || Math.abs(deltaX) < Math.abs(deltaY) * 1.3) return index;
+  return Math.max(0, Math.min(count - 1, index + (deltaX < 0 ? 1 : -1)));
+}
+
 export function downloadFileName(title: string, path?: string | null) {
   const extension = path?.split('?')[0]?.split('#')[0]?.split('.').pop() || 'png';
   const safeTitle = title.trim().toLowerCase().replace(/[^a-z0-9\u4e00-\u9fff\u3400-\u4dbf]+/gi, '-').replace(/^-+|-+$/g, '') || 'image';

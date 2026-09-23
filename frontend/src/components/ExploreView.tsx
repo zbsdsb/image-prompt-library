@@ -171,7 +171,7 @@ export default function ExploreView({
         count={nonEmptyClusters.length}
         countLabel={t('collections')}
       />
-      <div className="explore-collection-grid">
+      <div className={`explore-collection-grid${nonEmptyClusters.length === 1 ? ' is-single-collection' : ''}`}>
         {nonEmptyClusters.map(cluster => {
           const previews = cluster.preview_images.slice(0, 3);
           return (

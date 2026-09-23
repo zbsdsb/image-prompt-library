@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode, type TouchEvent } from 'react';
 import { Check, Copy, Download, ExternalLink, Heart, Maximize2, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { api, mediaUrl } from '../api/client';
 import { focusFirstAvailable } from '../hooks/useModalFocus';
 import type { ClusterRecord, ImageRecord, ItemDetail, PromptRecord, TagRecord, UiLanguage } from '../types';
 import { copyTextToClipboard } from '../utils/clipboard';
 import { localizedDemoTitle } from '../utils/demoTitles';
-import { downloadFileName, imageDisplayPath, imageHeroPath, imageOriginalPath, imageThumbnailPath, selectPrimaryImage } from '../utils/images';
+import { downloadFileName, imageDisplayPath, imageHeroPath, imageOriginalPath, imageThumbnailPath, selectPrimaryImage, swipedImageIndex } from '../utils/images';
 import type { Translator } from '../utils/i18n';
 import { PROMPT_LANGUAGE_LABELS, resolveOriginalPrompt, resolvePromptText, type PromptCopyLanguage, type PromptLanguage } from '../utils/prompts';
 
@@ -228,6 +228,7 @@ export default function ItemDetailModal({
   const [isHeroFullscreen, setIsHeroFullscreen] = useState(false);
   const lastDefaultPromptKeyRef = useRef('');
   const heroImageRef = useRef<HTMLImageElement | null>(null);
+  const touchStartRef = useRef<{ x: number; y: number } | undefined>(undefined);
   const heroFullscreenFrameRef = useRef<HTMLDivElement | null>(null);
   const heroFullscreenTriggerRef = useRef<HTMLButtonElement | null>(null);
   const heroFullscreenCloseRef = useRef<HTMLButtonElement | null>(null);
@@ -344,6 +345,20 @@ export default function ItemDetailModal({
   const selectedImage = uniqueImages.find(image => image.id === selectedImageId) || primaryImage;
   const selectedImageGenerationSource = generationSourceLabel(selectedImage);
   const selectedImageIndex = selectedImage ? uniqueImages.findIndex(image => image.id === selectedImage.id) : -1;
+  const startImageSwipe = (event: TouchEvent<HTMLElement>) => {
+    if (event.touches.length !== 1 || (event.target as HTMLElement).closest('button,a,.image-gallery-rail')) {
+      touchStartRef.current = undefined;
+      return;
+    }
+    touchStartRef.current = { x: event.touches[0].clientX, y: event.touches[0].clientY };
+  };
+  const finishImageSwipe = (event: TouchEvent<HTMLElement>) => {
+    const start = touchStartRef.current;
+    touchStartRef.current = undefined;
+    if (!start || event.changedTouches.length !== 1 || selectedImageIndex < 0) return;
+    const next = swipedImageIndex(selectedImageIndex, uniqueImages.length, event.changedTouches[0].clientX - start.x, event.changedTouches[0].clientY - start.y);
+    if (next !== selectedImageIndex) setSelectedImageId(uniqueImages[next].id);
+  };
   const heroStyle = selectedImage?.width && selectedImage.height
     ? ({ '--detail-image-aspect-ratio': `${selectedImage.width} / ${selectedImage.height}` } as CSSProperties)
     : undefined;
@@ -498,6 +513,9 @@ export default function ItemDetailModal({
         aria-label={displayTitle || item?.title || t('loading')}
         tabIndex={-1}
       >
+        <button type="button" className="modal-icon-button detail-mobile-sticky-close" onClick={handleClose} aria-label={t('close')}>
+          <X size={20} strokeWidth={2.25} />
+        </button>
         {!item ? (
           loadError ? (
             <div className="modal-load-error" role="alert">
@@ -511,6 +529,9 @@ export default function ItemDetailModal({
               <section
                 className={`modal-hero${uniqueImages.length === 1 ? ' has-single-hero' : ''}${isHeroFullscreen ? ' is-mobile-fullscreen' : ''}`}
                 style={heroStyle}
+                onTouchStart={startImageSwipe}
+                onTouchEnd={finishImageSwipe}
+                onTouchCancel={() => { touchStartRef.current = undefined; }}
               >
                 {selectedImage ? (
                   <>
@@ -533,9 +554,6 @@ export default function ItemDetailModal({
                   <div className="placeholder hero-image">{t('noImage')}</div>
                 )}
                 <div className="mobile-hero-actions" aria-label={t('itemActions')}>
-                  <button className="modal-icon-button mobile-hero-close" onClick={handleClose} aria-label={t('close')}>
-                    <X size={20} strokeWidth={2.25} />
-                  </button>
                   {(selectedImage || showMutations) && (
                     <span className="mobile-hero-primary-actions">
                        {selectedImage && <a className="modal-icon-button download-button" href={mediaUrl(selectedImage.original_path || imageHeroPath(selectedImage))} download={downloadFileName(displayTitle || item.title, selectedImage?.original_path || imageHeroPath(selectedImage))} aria-label={t('download')} title={t('download')}><Download size={18} /></a>}

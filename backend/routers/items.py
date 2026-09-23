@@ -9,8 +9,12 @@ def not_found(exc: KeyError):
     raise HTTPException(404, "Item not found") from exc
 
 @router.get("/items", response_model=ItemList)
-def list_items(request: Request, q: str | None=None, cluster: str | None=None, tag: str | None=None, favorite: bool | None=None, archived: bool | None=False, sort: str="updated_desc", limit: int=100, offset: int=0):
-    return repo(request).list_items(q=q, cluster=cluster, tag=tag, favorite=favorite, archived=archived, sort=sort, limit=min(limit,1000), offset=offset)
+def list_items(request: Request, q: str | None=None, cluster: str | None=None, tag: str | None=None, model: str | None=None, favorite: bool | None=None, archived: bool | None=False, sort: str="updated_desc", limit: int=100, offset: int=0):
+    return repo(request).list_items(q=q, cluster=cluster, tag=tag, model=model, favorite=favorite, archived=archived, sort=sort, limit=min(limit,1000), offset=offset)
+
+@router.get("/items/models", response_model=list[str])
+def list_models(request: Request):
+    return repo(request).list_models()
 
 @router.post("/items", response_model=ItemDetail)
 def create_item(request: Request, payload: ItemCreate):

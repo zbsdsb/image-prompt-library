@@ -33,6 +33,19 @@ def create_payload(**overrides):
     return payload
 
 
+def test_mobile_filter_facets_and_combined_query(tmp_path):
+    c = client(tmp_path)
+    first = c.post("/api/items", json=create_payload(model="GPT Image 2", tags=["soft light"])).json()
+    c.post("/api/items", json=create_payload(title="Second image", model="Other Model", tags=["portrait"]))
+    assert c.post(f"/api/items/{first['id']}/favorite").status_code == 200
+
+    assert c.get("/api/items/models").json() == ["GPT Image 2", "Other Model"]
+    response = c.get("/api/items", params={"model": "GPT Image 2", "tag": "soft light", "favorite": "true"})
+    assert response.status_code == 200
+    assert [item["id"] for item in response.json()["items"]] == [first["id"]]
+    assert c.get("/api/items", params={"model": "Other Model", "favorite": "true"}).json()["total"] == 0
+
+
 def test_api_rejects_explicit_prompt_provenance_without_exactly_one_original(tmp_path):
     c = client(tmp_path)
     zero_original = create_payload(prompts=[

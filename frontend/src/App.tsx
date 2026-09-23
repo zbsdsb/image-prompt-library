@@ -22,7 +22,7 @@ import { localizedDemoTitle } from './utils/demoTitles';
 import { APPEARANCE_STORAGE_KEY, applyAppearance, loadAppearance } from './utils/appearance';
 import { DEFAULT_UI_LANGUAGE, UI_LANGUAGE_LABELS, makeTranslator, normalizeUiLanguage, type UiLanguage } from './utils/i18n';
 import { DEFAULT_PROMPT_LANGUAGE, normalizePromptLanguage, resolvePromptText, type PromptCopyLanguage } from './utils/prompts';
-import { DEFAULT_ITEM_SORT, parseSearchSortQuery, parseStructuredSearchChips, removeSearchSortOperator } from './utils/searchSort';
+import { DEFAULT_ITEM_SORT, parseSearchSortQuery, parseStructuredSearchChips, removeSearchSortOperator, removeStructuredSearchChip } from './utils/searchSort';
 
 const UI_LANGUAGE_STORAGE_KEY = 'image-prompt-library.ui_language';
 const PROMPT_LANGUAGE_STORAGE_KEY = 'image-prompt-library.preferred_prompt_language';
@@ -101,6 +101,10 @@ export default function App() {
   const [libraryTotal, setLibraryTotal] = useState<number>();
   const libraryTotalRequestRef = useRef(0);
   const [tags, setTags] = useState<TagRecord[]>([]);
+  const [models, setModels] = useState<string[]>([]);
+  const [tagId, setTagId] = useState<string>();
+  const [modelFilter, setModelFilter] = useState<string>();
+  const [favoriteOnly, setFavoriteOnly] = useState(false);
   const [detailId, setDetailId] = useState<string>();
   const [editing, setEditing] = useState<ItemDetail | undefined>();
   const [editorOpen, setEditorOpen] = useState(false);
@@ -132,9 +136,12 @@ export default function App() {
   const detailDeleteInFlightRef = useRef(false);
   const [updateStatus, setUpdateStatus] = useState<AppUpdateStatus>();
   const [restartRequiredVersion, setRestartRequiredVersion] = useState<string>();
-  const { data, loading, initialLoading, refreshing, error, dataScope } = useItemsQuery(parsedSearchQuery.q, clusterId, undefined, 1000, itemsReloadKey, activeSort);
+  const { data, loading, initialLoading, refreshing, error, dataScope } = useItemsQuery(parsedSearchQuery.q, clusterId, tagId, 1000, itemsReloadKey, activeSort, modelFilter, favoriteOnly || undefined);
   const dataScopeMatches = dataScope.q === parsedSearchQuery.q
     && dataScope.clusterId === clusterId
+    && dataScope.tag === tagId
+    && dataScope.model === modelFilter
+    && dataScope.favorite === (favoriteOnly || undefined)
     && dataScope.viewLimit === 1000
     && dataScope.sort === activeSort;
   const selectedCluster = useMemo(() => clusters.find(c => c.id === clusterId), [clusters, clusterId]);
@@ -209,6 +216,7 @@ export default function App() {
     }
   }, []);
   const refreshTags = () => api.tags().then(setTags).catch(() => setTags([]));
+  const refreshModels = () => api.models().then(setModels).catch(() => setModels([]));
   const refreshAppConfig = () => api.config().then(setAppConfig).catch(() => setAppConfig(undefined));
   const refreshUpdateStatus = useCallback((refresh = false) => api.updateStatus(refresh).then(status => {
     setUpdateStatus(status);
@@ -238,7 +246,7 @@ export default function App() {
       setUpdateStatus(current => current ? { ...current, update_available: false } : current);
     }
   }, []);
-  useEffect(() => { refreshClusters(); refreshLibraryTotal(); refreshTags(); refreshAppConfig(); refreshUpdateStatus(); }, [refreshClusters, refreshLibraryTotal, refreshUpdateStatus]);
+  useEffect(() => { refreshClusters(); refreshLibraryTotal(); refreshTags(); refreshModels(); refreshAppConfig(); refreshUpdateStatus(); }, [refreshClusters, refreshLibraryTotal, refreshUpdateStatus]);
   useEffect(() => {
     if (isDemoMode || !FRONTEND_BUILD_VERSION || FRONTEND_BUILD_VERSION === 'demo') return;
     api.health().then(({ version: serverVersion }) => {
@@ -279,7 +287,8 @@ export default function App() {
   const selectCluster = (c: ClusterRecord) => { setClusterId(c.id); updateView('cards'); };
   const handleFilterSelect = (c: ClusterRecord) => selectCluster(c);
   const clearCluster = () => setClusterId(undefined);
-  const saved = () => { refreshClusters(); refreshLibraryTotal(); refreshTags(); setItemsReloadKey(k => k + 1); };
+  const clearFilters = () => { setClusterId(undefined); setTagId(undefined); setModelFilter(undefined); setFavoriteOnly(false); };
+  const saved = () => { refreshClusters(); refreshLibraryTotal(); refreshTags(); refreshModels(); setItemsReloadKey(k => k + 1); };
   const clearSelection = () => setSelectedItemIds(new Set());
   const exitSelectionMode = () => { setBatchActionDialog(undefined); setSelectionActionsOpen(false); setSelectionMode(false); clearSelection(); };
   const deleted = () => { setDetailId(undefined); setEditing(undefined); setFocusedGenerationJobId(undefined); setGenerationSourceItem(undefined); exitSelectionMode(); refreshClusters(); refreshLibraryTotal(); refreshTags(); setItemsReloadKey(k => k + 1); };
@@ -364,7 +373,7 @@ export default function App() {
     || (loading && !dataScopeMatches)
     || (view === 'explore' && !parsedSearchQuery.q.trim() && clustersLoading);
   const emptyMode = currentScopeSettled
-    ? (!isDemoMode && localizedData.items.length === 0 && !q.trim() && !clusterId ? 'first-run' : 'no-results')
+    ? (!isDemoMode && localizedData.items.length === 0 && !q.trim() && !clusterId && !tagId && !modelFilter && !favoriteOnly ? 'first-run' : 'no-results')
     : undefined;
   const openNewItemEditor = () => { generationJobRequestRef.current += 1; cancelPendingEdit(); setEditing(undefined); setEditorOpen(true); };
   const openFilters = () => { generationJobRequestRef.current += 1; cancelPendingEdit(); setConfigOpen(false); setFocusConfigProviders(false); setGenerationQueueOpen(false); setFiltersOpen(true); };
@@ -433,6 +442,52 @@ export default function App() {
     setDetailId(undefined);
     setFocusedGenerationJobId(undefined);
   };
+  // One same-URL history entry lets Android Back dismiss the top-level surface.
+  // Programmatic closes consume that entry; a popstate close must not go back twice.
+  const overlayKind = batchActionDialog || (configOpen && 'config') || (standaloneGenerationOpen && 'generation') || (editorOpen && 'editor')
+    || (detailId && `detail:${detailId}`) || (generationQueueOpen && 'queue')
+    || (filtersOpen && 'filters') || '';
+  const overlayHistoryOwnedRef = useRef(false);
+  const overlayBackPendingRef = useRef(false);
+  const overlayKindRef = useRef(overlayKind);
+  const closeOverlayRef = useRef<() => void>(() => undefined);
+  overlayKindRef.current = overlayKind;
+  closeOverlayRef.current = () => {
+    if (batchActionDialog) setBatchActionDialog(undefined);
+    else if (configOpen) closeConfig();
+    else if (standaloneGenerationOpen) closeStandaloneGeneration();
+    else if (editorOpen) setEditorOpen(false);
+    else if (detailId) closeItemDetail();
+    else if (generationQueueOpen) closeGenerationQueue();
+    else if (filtersOpen) setFiltersOpen(false);
+  };
+  useEffect(() => {
+    if (overlayKind && !overlayHistoryOwnedRef.current && !overlayBackPendingRef.current) {
+      window.history.pushState({ ...window.history.state, imagePromptLibraryOverlay: true }, '');
+      overlayHistoryOwnedRef.current = true;
+    } else if (!overlayKind && overlayHistoryOwnedRef.current) {
+      overlayHistoryOwnedRef.current = false;
+      overlayBackPendingRef.current = true;
+      window.history.back();
+    }
+  }, [overlayKind]);
+  useEffect(() => {
+    const handleOverlayBack = () => {
+      if (overlayBackPendingRef.current) {
+        overlayBackPendingRef.current = false;
+        if (overlayKindRef.current) {
+          window.history.pushState({ ...window.history.state, imagePromptLibraryOverlay: true }, '');
+          overlayHistoryOwnedRef.current = true;
+        }
+        return;
+      }
+      if (!overlayHistoryOwnedRef.current) return;
+      overlayHistoryOwnedRef.current = false;
+      if (overlayKindRef.current) closeOverlayRef.current();
+    };
+    window.addEventListener('popstate', handleOverlayBack);
+    return () => window.removeEventListener('popstate', handleOverlayBack);
+  }, []);
   const favorite = (id: string) => { api.favorite(id).then(saved).catch(() => undefined); };
   const toggleSelectedItem = (id: string) => {
     setSelectedItemIds(current => {
@@ -524,8 +579,13 @@ export default function App() {
   const updateBadgeLabel = restartRequiredVersion
     ? t('restartRequired')
     : (updateStatus?.update_available && updateStatus.update_capability !== 'source' ? t('updateAvailable') : undefined);
+  const facetChips = [
+    selectedCluster && { id: 'cluster', label: localizedClusterName(selectedCluster, uiLanguage) },
+    tagId && { id: 'tag', label: `#${tags.find(tag => tag.id === tagId)?.name || tagId}` },
+    modelFilter && { id: 'model', label: modelFilter },
+  ].filter((chip): chip is { id: string; label: string } => Boolean(chip));
   return <div className={`app ${view === 'explore' ? 'explore-mode' : 'cards-mode'}`}>
-    <FiltersPanel t={t} open={filtersOpen} clusters={localizedClusters} total={libraryTotal} selected={clusterId} onSelect={handleFilterSelect} onClear={clearCluster} onClose={() => setFiltersOpen(false)} />
+    <FiltersPanel t={t} open={filtersOpen} clusters={localizedClusters} tags={tags} models={models} total={libraryTotal} selected={clusterId} selectedTag={tagId} selectedModel={modelFilter} favoriteOnly={favoriteOnly} onSelect={handleFilterSelect} onTag={value => { setTagId(value); updateView('cards'); }} onModel={value => { setModelFilter(value); updateView('cards'); }} onFavorite={value => { setFavoriteOnly(value); updateView('cards'); }} onClear={clearFilters} onClose={() => setFiltersOpen(false)} />
     <ConfigPanel t={t} open={configOpen} focusProviders={focusConfigProviders} onClose={closeConfig} uiLanguage={uiLanguage} onUiLanguage={updateUiLanguage} preferredLanguage={preferredLanguage} onPreferredLanguage={updatePreferredLanguage} appearance={appearance} onAppearance={updateAppearance} defaultAiProvider={defaultAiProvider} onDefaultAiProvider={updateDefaultAiProvider} updateStatus={updateStatus} onRefreshUpdateStatus={refreshUpdateStatus} onUpdateInstalled={handleUpdateInstalled} onLibraryCleanup={saved} />
     <div className="app-content" inert={drawerModalOpen}>
     {!hasChosenUiLanguage && (
@@ -543,7 +603,7 @@ export default function App() {
         </section>
       </div>
     )}
-    <TopBar t={t} q={q} queryFilterChips={queryFilterChips} updateBadgeLabel={updateBadgeLabel} onQ={setQ} view={view} onView={updateView} onFilters={openFilters} onConfig={openConfig} filtersOpen={filtersOpen} configOpen={configOpen} hasActiveFilter={Boolean(selectedCluster)} modalOpen={blockingModalOpen} />
+    <TopBar t={t} q={q} queryFilterChips={queryFilterChips} facetChips={facetChips} onRemoveFacet={id => { if (id === 'cluster') setClusterId(undefined); if (id === 'tag') setTagId(undefined); if (id === 'model') setModelFilter(undefined); }} updateBadgeLabel={updateBadgeLabel} onQ={setQ} onRemoveFilter={chip => setQ(current => removeStructuredSearchChip(current, chip))} favoriteOnly={favoriteOnly} onFavorite={() => { setFavoriteOnly(value => !value); updateView('cards'); }} view={view} onView={updateView} onFilters={openFilters} onConfig={openConfig} filtersOpen={filtersOpen} configOpen={configOpen} hasActiveFilter={Boolean(selectedCluster || tagId || modelFilter || favoriteOnly)} modalOpen={blockingModalOpen} />
     <div className={`content-plane${viewTransition ? ` ${viewTransition}` : ''}`} inert={blockingModalOpen} aria-hidden={blockingModalOpen || undefined}>
     {isDemoMode && (
       <div className="demo-banner" role="status">
@@ -563,7 +623,7 @@ export default function App() {
         </div>
       )}
       {(!error || localizedData.items.length > 0) && (view === 'explore'
-        ? <ExploreView t={t} clusters={localizedClusters} items={localizedData.items} total={localizedData.total} hasActiveSearch={Boolean(parsedSearchQuery.q.trim())} searchQuery={parsedSearchQuery.q} loading={contentLoading} sort={activeSort} onSort={updateSort} onOpenCollection={selectCluster} onOpen={setDetailId} onCopyPrompt={copyPrompt} onAdd={isDemoMode ? undefined : openNewItemEditor} />
+        ? <ExploreView t={t} clusters={localizedClusters} items={localizedData.items} total={localizedData.total} hasActiveSearch={Boolean(parsedSearchQuery.q.trim() || tagId || modelFilter || favoriteOnly)} searchQuery={parsedSearchQuery.q} loading={contentLoading} sort={activeSort} onSort={updateSort} onOpenCollection={selectCluster} onOpen={setDetailId} onCopyPrompt={copyPrompt} onAdd={isDemoMode ? undefined : openNewItemEditor} />
         : <CardsView t={t} items={localizedData.items} loading={contentLoading} emptyMode={emptyMode} total={localizedData.total} sort={activeSort} onSort={updateSort} clusterName={localizedClusterName(selectedCluster, uiLanguage)} hasActiveSearch={Boolean(parsedSearchQuery.q.trim())} onClearCluster={clearCluster} onOpen={setDetailId} onFavorite={isDemoMode ? undefined : favorite} onEdit={isDemoMode ? undefined : editSummary} editingItemId={editingItemId} onToggleSelection={selectionMode ? toggleSelectedItem : undefined} selectedIds={selectedItemIds} onCopyPrompt={copyPrompt} onAdd={isDemoMode ? undefined : openNewItemEditor} onOpenConfig={openConfig} />)}
     </main>
     </div>

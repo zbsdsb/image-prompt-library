@@ -14,10 +14,11 @@ async function importTypescript(relativePath) {
 const {
   parseSearchSortQuery,
   parseStructuredSearchChips,
+  removeStructuredSearchChip,
   removeSearchSortOperator,
 } = await importTypescript('../frontend/src/utils/searchSort.ts');
 const { resolveOriginalPrompt, resolvePromptText } = await importTypescript('../frontend/src/utils/prompts.ts');
-const { downloadFileName, imageDisplayPath, imageThumbnailPath, selectPrimaryImage } = await importTypescript('../frontend/src/utils/images.ts');
+const { downloadFileName, imageDisplayPath, imageThumbnailPath, selectPrimaryImage, swipedImageIndex } = await importTypescript('../frontend/src/utils/images.ts');
 const { generationFailure } = await importTypescript('../frontend/src/utils/generationFailures.ts');
 const { generationSetProgressText, providerPauseSeconds } = await importTypescript('../frontend/src/utils/generationSets.ts');
 const { APPEARANCE_STORAGE_KEY, DEFAULT_APPEARANCE, normalizeAppearance } = await importTypescript('../frontend/src/utils/appearance.ts');
@@ -50,6 +51,8 @@ test('search helpers parse sort operators and supported filter chips', () => {
     parseStructuredSearchChips('created:7d tag:poster favorite:true has:image created:forever'),
     ['created:7d', 'tag:poster', 'favorite:true', 'has:image'],
   );
+  assert.equal(removeStructuredSearchChip('cats tag:poster sort:title favorite:true', 'tag:poster'), 'cats sort:title favorite:true');
+  assert.equal(removeStructuredSearchChip('tag:poster,tag:other', 'tag:poster'), 'tag:other');
 });
 
 test('prompt helpers prefer requested text and fall back predictably', () => {
@@ -73,6 +76,15 @@ test('image helpers select result images and produce safe download names', () =>
   assert.equal(imageThumbnailPath({ ...result, thumb_path: 'thumb.webp' }), 'thumb.webp');
   assert.equal(imageThumbnailPath({ ...result, thumb_path: undefined }), 'preview.webp');
   assert.equal(downloadFileName('  Poster / Study  ', 'preview.webp?size=large'), 'poster-study.webp');
+});
+
+test('mobile image swipes ignore vertical movement and stop at gallery edges', () => {
+  assert.equal(swipedImageIndex(0, 3, -65, 10), 1);
+  assert.equal(swipedImageIndex(1, 3, 65, 10), 0);
+  assert.equal(swipedImageIndex(0, 3, 80, 0), 0);
+  assert.equal(swipedImageIndex(2, 3, -80, 0), 2);
+  assert.equal(swipedImageIndex(1, 3, -90, 100), 1);
+  assert.equal(swipedImageIndex(1, 3, -20, 0), 1);
 });
 
 test('batch review slots retain accepted target metadata and result image paths', () => {

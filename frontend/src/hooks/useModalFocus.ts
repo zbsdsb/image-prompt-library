@@ -9,6 +9,14 @@ const FOCUSABLE_SELECTOR = [
   '[tabindex]:not([tabindex="-1"])',
 ].join(',');
 
+export function prefersNonKeyboardFocus() {
+  return window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0 || window.matchMedia('(max-width: 760px)').matches;
+}
+
+function isTextInput(element: HTMLElement) {
+  return element.matches('input:not([type="checkbox"]):not([type="radio"]), textarea, [contenteditable="true"]');
+}
+
 export function isAvailableFocusTarget(element: HTMLElement | null | undefined) {
   if (
     !element?.isConnected
@@ -88,7 +96,7 @@ export function useModalFocus<T extends HTMLElement>(
       const container = containerRef.current;
       const initial = container?.querySelector<HTMLElement>('[data-modal-initial-focus]');
       const first = container?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
-      (initial || first || container)?.focus({ preventScroll: true });
+      (prefersNonKeyboardFocus() ? container : (initial || first || container))?.focus({ preventScroll: true });
     });
 
     return () => {
@@ -102,7 +110,8 @@ export function useModalFocus<T extends HTMLElement>(
           ? Array.from(document.querySelectorAll<HTMLElement>(options.secondaryFallbackFocusSelector))
           : [];
         const appFallback = document.querySelector<HTMLElement>('.toolbar-search input');
-        const restoreCandidates = [opener, ...fallbacks, ...secondaryFallbacks, appFallback];
+        const restoreCandidates = [opener, ...fallbacks, ...secondaryFallbacks, appFallback]
+          .filter((element): element is HTMLElement => element instanceof HTMLElement && (!prefersNonKeyboardFocus() || !isTextInput(element)));
         // A new unrelated modal owns focus. A parent modal containing one of
         // our restore targets is the nested-dialog case and may safely resume.
         if (hasActiveModalOutside(owner, restoreCandidates)) return;

@@ -200,6 +200,7 @@ test('Explore directory lists only non-empty Collections with uncropped preview 
   const html = render({ clusters: [activeCluster, emptyCluster], items, total: 60 });
 
   assert.match(html, /class="explore-directory"/);
+  assert.match(html, /class="explore-collection-grid is-single-collection"/);
   assert.equal((html.match(/<h1\b/g) || []).length, 1);
   assert.match(html, /<h1>Collections<\/h1>/);
   assert.match(html, /class="scope-count"[\s\S]*?>1<span class="sr-only"> Collections<\/span>/);
@@ -1154,8 +1155,10 @@ test('redesign interaction guards keep overlays mutually exclusive and focus-saf
   assert.match(styles, /\.card-actions\{[\s\S]*?position:absolute;[\s\S]*?display:flex;[\s\S]*?width:max-content/);
   assert.match(styles, /@media\(max-width:760px\)\{[\s\S]*?\.item-card \.card-actions\{[^}]*display:flex!important;[^}]*width:max-content;[^}]*opacity:1;[^}]*transform:none;[^}]*pointer-events:auto/);
   assert.match(styles, /@media \(min-width:761px\) and \(hover:none\),\(min-width:761px\) and \(pointer:coarse\)\{[\s\S]*?\.item-card \.card-actions\{display:flex;width:max-content;opacity:1;transform:none;pointer-events:auto/);
-  assert.match(styles, /@media\(max-width:400px\)\{[\s\S]*?\.responsive-cards-grid\{column-count:1\}/);
-  assert.match(styles, /@media\(max-width:400px\)\{[\s\S]*?\.responsive-cards-grid\.is-sparse\.sparse-count-2\{grid-template-columns:1fr;gap:18px\}/);
+  assert.match(styles, /@media\(max-width:320px\)\{[\s\S]*?\.responsive-cards-grid\{column-count:1\}/);
+  assert.match(styles, /@media\(max-width:320px\)\{[\s\S]*?\.responsive-cards-grid\.is-sparse\.sparse-count-2\{grid-template-columns:1fr;gap:18px\}/);
+  assert.match(styles, /\.mobile-hero-primary-actions\{[^}]*justify-content:flex-start;[^}]*overflow-x:auto/);
+  assert.match(styles, /\.detail-mobile-sticky-close\{position:sticky;/);
   assert.match(styles, /\.hover-action\{[\s\S]*?cursor:pointer;/);
   assert.match(styles, /\.card-media\{position:relative;z-index:2;pointer-events:none\}/);
   assert.doesNotMatch(styles, /\.item-card\.is-selecting \.card-actions/);
@@ -1311,4 +1314,21 @@ test('title suggestions are explicit, provider-aware, prompt-only, and shared by
   assert.match(config, /disabled=\{!enabled\}/);
   assert.match(config, /defaultAiProvider === providerId/);
   assert.match(styles, /\.title-suggestion-meta\{[^}]*display:flex;[^}]*gap:6px/);
+});
+
+test('mobile search clear avoids label activation and Back restores the next overlay', async () => {
+  const [topBar, app, filters, focus] = await Promise.all([
+    readFile(`${ROOT}/frontend/src/components/TopBar.tsx`, 'utf8'),
+    readFile(`${ROOT}/frontend/src/App.tsx`, 'utf8'),
+    readFile(`${ROOT}/frontend/src/components/FiltersPanel.tsx`, 'utf8'),
+    readFile(`${ROOT}/frontend/src/hooks/useModalFocus.ts`, 'utf8'),
+  ]);
+
+  assert.match(topBar, /<div className="search toolbar-search">[\s\S]*?<input[\s\S]*?aria-label=\{t\('searchAria'\)\}[\s\S]*?<button type="button" className="search-clear"/);
+  assert.doesNotMatch(topBar, /<label className="search toolbar-search"/);
+  assert.match(app, /overlayBackPendingRef\.current = true;\s*window\.history\.back\(\)/);
+  assert.match(app, /if \(overlayBackPendingRef\.current\) \{[\s\S]*?if \(overlayKindRef\.current\) \{[\s\S]*?window\.history\.pushState/);
+  assert.match(app, /\}, \[overlayKind\]\)/);
+  assert.match(filters, /if \(wasOpenRef\.current\) \{[\s\S]*?restoreFocusAfterMotion/);
+  assert.match(focus, /prefersNonKeyboardFocus\(\) \|\| !isTextInput\(element\)/);
 });
