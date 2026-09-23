@@ -553,26 +553,6 @@ export default function ItemDetailModal({
                 ) : (
                   <div className="placeholder hero-image">{t('noImage')}</div>
                 )}
-                <div className="mobile-hero-actions" aria-label={t('itemActions')}>
-                  {(selectedImage || showMutations) && (
-                    <span className="mobile-hero-primary-actions">
-                       {selectedImage && <a className="modal-icon-button download-button" href={mediaUrl(selectedImage.original_path || imageHeroPath(selectedImage))} download={downloadFileName(displayTitle || item.title, selectedImage?.original_path || imageHeroPath(selectedImage))} aria-label={t('download')} title={t('download')}><Download size={18} /></a>}
-                      {allowManagementActions && <button className="modal-icon-button favorite-button" onClick={toggleFavorite} aria-label={item.favorite ? t('saved') : t('favorite')}>
-                        <Heart size={18} fill={item.favorite ? 'currentColor' : 'none'} />
-                      </button>}
-                      {showMutations && <button className="modal-icon-button edit-button" onClick={() => onEdit(item)} aria-label={t('edit')}>
-                        <Pencil size={18} />
-                      </button>}
-                      {allowManagementActions && <button className="modal-icon-button detail-delete-button" onClick={handleDelete} disabled={deleteBusy} aria-label={t('deleteReference')} title={t('deleteReference')}>
-                        <Trash2 size={18} />
-                      </button>}
-                       {showMutations && canGenerate && <button className="modal-icon-button mobile-generate-variant-button" onClick={() => onGenerate(item)} aria-label={t('generateVariant')} title={t('generateVariant')}>
-                         <Plus size={18} />
-                         <span className="mobile-generate-variant-label">{t('generate')}</span>
-                      </button>}
-                    </span>
-                  )}
-                </div>
                 {uniqueImages.length > 1 && (
                    <div className="rail glass-rail image-gallery-rail" aria-label={t('itemImages')}>
                     {uniqueImages.map((img, index) => (
@@ -591,6 +571,30 @@ export default function ItemDetailModal({
                   </div>
                 )}
               </section>
+
+              {/* Sits below the artwork rather than over it: as an absolute overlay the
+                  row covered the bottom of the reference image and straddled the edge
+                  between image and sheet with no boundary of its own. */}
+              <div className="mobile-hero-actions" aria-label={t('itemActions')}>
+                {(selectedImage || showMutations) && (
+                  <span className="mobile-hero-primary-actions">
+                     {selectedImage && <a className="modal-icon-button download-button" href={mediaUrl(selectedImage.original_path || imageHeroPath(selectedImage))} download={downloadFileName(displayTitle || item.title, selectedImage?.original_path || imageHeroPath(selectedImage))} aria-label={t('download')} title={t('download')}><Download size={18} /></a>}
+                    {allowManagementActions && <button className="modal-icon-button favorite-button" onClick={toggleFavorite} aria-label={item.favorite ? t('saved') : t('favorite')}>
+                      <Heart size={18} fill={item.favorite ? 'currentColor' : 'none'} />
+                    </button>}
+                    {showMutations && <button className="modal-icon-button edit-button" onClick={() => onEdit(item)} aria-label={t('edit')}>
+                      <Pencil size={18} />
+                    </button>}
+                    {allowManagementActions && <button className="modal-icon-button detail-delete-button" onClick={handleDelete} disabled={deleteBusy} aria-label={t('deleteReference')} title={t('deleteReference')}>
+                      <Trash2 size={18} />
+                    </button>}
+                     {showMutations && canGenerate && <button className="modal-icon-button mobile-generate-variant-button" onClick={() => onGenerate(item)} aria-label={t('generateVariant')} title={t('generateVariant')}>
+                       <Plus size={18} />
+                       <span className="mobile-generate-variant-label">{t('generate')}</span>
+                    </button>}
+                  </span>
+                )}
+              </div>
 
               <aside className="detail-side">
                 <div className="detail-side-actions">
