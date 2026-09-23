@@ -2025,7 +2025,11 @@ body:has(.modal-backdrop),body:has(.drawer.open),body:has(.generation-queue-draw
     height:44px;
     min-height:44px;
     border-radius:999px;
-    background:rgb(var(--studio-surface-rgb) / .86);
+    /* Both controls sit on a near-white sheet, so a translucent fill left them
+       almost edgeless. Give them an opaque surface plus a defined ring. */
+    background:var(--studio-surface);
+    border:1px solid rgb(var(--studio-ink-rgb) / .16);
+    box-shadow:0 2px 10px rgb(var(--studio-ink-rgb) / .14);
   }
   .detail.modal .detail-mobile-sticky-close{position:sticky;top:calc(12px + env(safe-area-inset-top));z-index:20;margin:calc(12px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right, 0px)) calc(-56px - env(safe-area-inset-top)) auto}
   .image-counter{top:calc(12px + env(safe-area-inset-top));left:calc(12px + env(safe-area-inset-left))}
