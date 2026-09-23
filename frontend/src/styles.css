@@ -99,11 +99,14 @@ button{color:inherit}
 .modal-icon-button.close{position:static}
 .detail-side-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;margin:0 0 2px}
 .detail-side-primary-actions{display:inline-flex;align-items:center;min-width:0;gap:6px}
-.metadata-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.metadata-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;line-height:1.45}
+/* Keep the separator glued to the author it introduces, so a wrapped row never
+   leaves a lone middot stranded at the end of the previous line. */
+.metadata-author-group{display:inline-flex;align-items:center;gap:8px;min-width:0}
 .image-generation-provenance{display:flex;align-items:baseline;gap:6px;margin:2px 0 12px;color:var(--studio-muted,var(--muted));font-size:12px;line-height:1.35}
 .image-generation-provenance span{font-weight:700}
 .image-generation-provenance strong{color:var(--studio-ink,var(--ink));font-weight:800}
-.source-icon-link{display:inline-flex;align-items:center;color:#6f6b62;border-radius:999px;padding:4px}
+.source-icon-link{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:28px;height:28px;color:#6f6b62;border-radius:999px;padding:0;line-height:0}
 .inline-editable{border-radius:12px;transition:background .16s ease,box-shadow .16s ease;cursor:text}
 .inline-editable:hover,.inline-editable:focus-visible{background:rgba(109,74,255,.07);box-shadow:0 0 0 1px rgba(109,74,255,.12);outline:0}
 .inline-editable input,.inline-editable textarea{width:100%;border:1px solid var(--studio-hairline,#d8d1c3);border-radius:10px;background:var(--studio-surface,#fff);padding:9px 10px;outline:0;color:var(--studio-ink,var(--ink))}
@@ -112,6 +115,9 @@ button{color:inherit}
 .title-inline-edit{display:inline-block;min-width:min(100%,260px);font-size:clamp(24px,2.8vw,38px);line-height:1.08;letter-spacing:-.045em}
 .title-inline-edit input{font-size:inherit;line-height:inherit;letter-spacing:inherit;font-weight:900}
 .collection-inline-edit{display:inline-flex;width:max-content;max-width:100%;padding:6px 10px;color:var(--accent-strong);font-weight:900;text-transform:uppercase;letter-spacing:.08em;font-size:12px}
+/* The collection label belongs to the title, so pull it up against the heading
+   instead of inheriting the section-wide 12px rhythm. */
+.detail-side>.collection-inline-edit{margin-bottom:-6px}
 .metadata-inline-edit{display:inline-flex;align-items:center;padding:4px 6px}
 .inline-edit-controls{display:inline-flex;gap:5px;align-items:center}
 .inline-edit-confirm,.inline-edit-cancel{width:32px;height:30px;display:inline-grid;place-items:center;padding:0;border:1px solid var(--studio-hairline,#d8d1c3);border-radius:10px;background:var(--studio-surface,#fff);color:var(--studio-ink,var(--ink));cursor:pointer;transition:background .16s ease,border-color .16s ease,color .16s ease,box-shadow .16s ease}
@@ -128,6 +134,8 @@ button{color:inherit}
 .prompt-language-tab,.prompt-copy-icon,.prompt-edit-icon{border:0;background:transparent;cursor:pointer}
 .prompt-language-tab{font-weight:900;color:#4d453c}
 .prompt-copy-icon,.prompt-edit-icon{width:32px;height:32px;border-radius:999px;display:grid;place-items:center;color:#5d554a}
+.prompt-block-header .prompt-copy-icon,.prompt-block-header .prompt-edit-icon{width:44px;height:44px}
+.prompt-block-header .prompt-copy-icon svg,.prompt-block-header .prompt-edit-icon svg{width:18px;height:18px}
 .prompt-copy-icon:hover:not(:disabled),.prompt-edit-icon:hover{background:#e8e2d5}
 .prompt-copy-icon:disabled{opacity:.35;cursor:not-allowed}
 .prompt-panel-body{position:relative;min-height:0;background:#fff}
@@ -1017,6 +1025,20 @@ button.explore-collection-preview:focus-visible{outline:2px solid var(--studio-a
     min-height:34px;
     padding:0;
     border-radius:999px;
+    /* These controls sit on top of the artwork and are always visible on touch
+       devices, so keep them dimmed until touched to stop them competing with
+       the reference image itself. */
+    background:rgb(var(--studio-surface-rgb) / .72);
+    color:rgb(var(--studio-ink-rgb) / .78);
+    box-shadow:0 4px 12px rgb(var(--studio-ink-rgb) / .12);
+    backdrop-filter:blur(8px);
+    opacity:.86;
+  }
+  .item-card .hover-action:active,
+  .item-card .card-actions.is-menu-open .hover-action{
+    opacity:1;
+    background:rgb(var(--studio-surface-rgb) / .96);
+    color:var(--studio-ink);
   }
   .item-card .card-action-menu{top:calc(100% + 4px);right:0;bottom:auto}
   .app-command-dock{left:calc(12px + env(safe-area-inset-left));right:calc(12px + env(safe-area-inset-right));bottom:calc(10px + env(safe-area-inset-bottom));justify-content:space-between;gap:8px;padding:6px;border-radius:14px}
@@ -1916,7 +1938,11 @@ body:has(.modal-backdrop),body:has(.drawer.open),body:has(.generation-queue-draw
   .detail.modal{width:100vw;height:100dvh;max-height:100dvh;min-height:100dvh;overflow-y:auto;padding:0;border:0;border-radius:0}
   .detail.modal .detail-modal-content{display:block;height:auto;min-height:100%}
   .detail-layout{height:auto;min-height:100%;gap:0}
-  .modal-hero{height:auto;min-height:260px;max-height:min(72dvh,680px);aspect-ratio:var(--detail-image-aspect-ratio,4 / 3);border-radius:0}
+  .modal-hero{height:auto;min-height:240px;max-height:min(40dvh,420px);width:100%;aspect-ratio:var(--detail-image-aspect-ratio,4 / 3);border-radius:0}
+  /* An aspect-ratio next to a clamped max-height lets the box solve for width,
+     which shrank the hero and pushed it against the left edge. Pinning the
+     width to the row keeps the frame centred; the artwork letterboxes inside. */
+  .detail-layout .modal-hero .hero-image{width:100%;height:100%;object-fit:contain}
   .modal-hero.is-mobile-fullscreen{height:100dvh;min-height:100dvh;max-height:none;aspect-ratio:auto}
   .modal-hero .detail-fullscreen-frame{position:absolute}
   .glass-rail{left:12px;right:12px;bottom:68px;border-radius:12px}
@@ -1930,7 +1956,10 @@ body:has(.modal-backdrop),body:has(.drawer.open),body:has(.generation-queue-draw
   .detail.modal .modal-hero .mobile-generate-variant-button{display:inline-flex;width:auto;min-width:44px;padding:0 12px;gap:7px;background:transparent;white-space:nowrap}
   .mobile-generate-variant-label{display:inline}
   .detail-side-actions{display:none}
-  .detail-side{overflow:visible;padding:16px 14px calc(24px + env(safe-area-inset-bottom))}
+  .detail-side{overflow:visible;padding:16px 14px calc(32px + env(safe-area-inset-bottom, 0px))}
+  .prompt-language-tabs.tabs{gap:6px}
+  .prompt-language-tabs.tabs button{min-height:44px;padding:8px 14px}
+  .prompt-block-header{gap:14px}
   .detail-side h2{font-size:clamp(24px,7.5vw,34px)}
   .editor.modal{width:100vw;max-width:100vw;height:100dvh;max-height:100dvh;border:0;border-radius:0}
   .editor .close{right:12px;top:calc(10px + env(safe-area-inset-top))}
@@ -1978,7 +2007,21 @@ body:has(.modal-backdrop),body:has(.drawer.open),body:has(.generation-queue-draw
   .generation-set-progress .generation-cancel-remaining{grid-column:2;grid-row:3}
   .generation-set-actions>*{flex:1 1 auto;justify-content:center}
   .generation-queue-batch-card>.generation-set-actions>*{width:100%;flex:0 0 auto}
-  .detail-fullscreen-overlay{right:64px;top:calc(12px + env(safe-area-inset-top))}
+  .detail-fullscreen-overlay{right:calc(68px + env(safe-area-inset-right, 0px));top:calc(12px + env(safe-area-inset-top))}
+  /* Pair the fullscreen and close controls: identical size, identical pill shape,
+     same row, right-aligned, so they read as one group rather than two stray
+     buttons with mismatched corners. These need the .detail.modal prefix to
+     outrank the shared .modal-hero rules above. */
+  .detail.modal .modal-hero .detail-fullscreen-overlay,
+  .detail.modal .detail-mobile-sticky-close{
+    width:44px;
+    min-width:44px;
+    height:44px;
+    min-height:44px;
+    border-radius:999px;
+    background:rgb(var(--studio-surface-rgb) / .86);
+  }
+  .detail.modal .detail-mobile-sticky-close{position:sticky;top:calc(12px + env(safe-area-inset-top));z-index:20;margin:calc(12px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right, 0px)) calc(-56px - env(safe-area-inset-top)) auto}
   .image-counter{top:calc(12px + env(safe-area-inset-top));left:calc(12px + env(safe-area-inset-left))}
   .image-role-badge{top:calc(46px + env(safe-area-inset-top));left:calc(12px + env(safe-area-inset-left))}
   .detail.modal .detail-fullscreen-frame .detail-fullscreen-close{right:calc(18px + env(safe-area-inset-right));top:calc(18px + env(safe-area-inset-top))}

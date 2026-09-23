@@ -621,8 +621,10 @@ export default function ItemDetailModal({
                 </h2>
                 <p className="muted metadata-row">
                   <InlineEditableField t={t} className="metadata-inline-edit" value={item.model || t('defaultModel')} placeholder={t('imageGeneratedFrom')} onCommit={value => commitInlineUpdate({ model: value.trim() || item.model })} editable={allowManagementActions && !inlineMutationBusy} />
-                  <span>·</span>
-                  <InlineEditableField t={t} className="metadata-inline-edit" value={`@${item.author || 'User'}`} placeholder="@User" onCommit={value => commitInlineUpdate({ author: value.replace(/^@/, '').trim() || 'User' })} editable={allowManagementActions && !inlineMutationBusy} />
+                  <span className="metadata-author-group">
+                    <span aria-hidden="true">·</span>
+                    <InlineEditableField t={t} className="metadata-inline-edit" value={`@${item.author || 'User'}`} placeholder="@User" onCommit={value => commitInlineUpdate({ author: value.replace(/^@/, '').trim() || 'User' })} editable={allowManagementActions && !inlineMutationBusy} />
+                  </span>
                   {item.source_url && (
                     <a className="source-icon-link" href={item.source_url} target="_blank" rel="noreferrer" aria-label={t('source')}>
                       <ExternalLink size={16} />

@@ -24,6 +24,16 @@ FRONTEND_INDEX_CACHE_HEADERS = {
 FRONTEND_ASSET_CACHE_HEADERS = {"Cache-Control": "public, max-age=31536000, immutable"}
 SAFE_HTTP_METHODS = {"GET", "HEAD", "OPTIONS"}
 DEFAULT_DEVELOPMENT_ORIGINS = {"http://127.0.0.1:5177", "http://localhost:5177"}
+# Slim container images ship no /etc/mime.types, so mimetypes falls back to
+# application/octet-stream for WebP and some browsers then refuse to render the
+# image. Pin the library's own media types instead of trusting the host.
+MEDIA_TYPES = {
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".webp": "image/webp",
+    ".gif": "image/gif",
+}
 
 
 def _normalized_origin(value: str) -> tuple[str, str, int] | None:
@@ -150,7 +160,14 @@ def create_app(library_path: Path | str | None = None, frontend_dist_path: Path 
             and not _browser_write_origin_allowed(request, development_origin_authorities)
         ):
             return JSONResponse(status_code=403, content={"detail": "Cross-origin write requests are not allowed"})
-        return await call_next(request)
+        response = await call_next(request)
+        # Library data changes whenever the user edits or imports, and the URL never
+        # changes, so without an explicit directive Chrome falls back to heuristic
+        # caching and can keep serving a stale ordering. The API is same-origin and
+        # local, so revalidation is cheaper than a wrong list.
+        if request.url.path.startswith("/api/"):
+            response.headers["Cache-Control"] = "no-store"
+        return response
 
     app.include_router(items.router, prefix="/api")
     app.include_router(images.router, prefix="/api")
@@ -182,7 +199,7 @@ def create_app(library_path: Path | str | None = None, frontend_dist_path: Path 
             raise HTTPException(status_code=404) from exc
         if not candidate.is_file():
             raise HTTPException(status_code=404)
-        return FileResponse(candidate)
+        return FileResponse(candidate, media_type=MEDIA_TYPES.get(candidate.suffix.lower()))
 
     def serve_frontend_path(frontend_path: str = ""):
         if frontend_path == "api" or frontend_path.startswith("api/"):

@@ -1174,7 +1174,7 @@ test('redesign interaction guards keep overlays mutually exclusive and focus-saf
   assert.match(detail, /--detail-image-aspect-ratio/);
   assert.match(detail, /heroFullscreenCloseRef\.current/);
   assert.match(detail, /heroFullscreenTriggerRef\.current/);
-  assert.match(styles, /@media\(max-width:760px\)\{[\s\S]*?\.modal-hero\{height:auto;min-height:260px;max-height:min\(72dvh,680px\);aspect-ratio:var\(--detail-image-aspect-ratio,4 \/ 3\)/);
+  assert.match(styles, /@media\(max-width:760px\)\{[\s\S]*?\.modal-hero\{height:auto;min-height:240px;max-height:min\(40dvh,420px\);width:100%;aspect-ratio:var\(--detail-image-aspect-ratio,4 \/ 3\)/);
   assert.match(styles, /\.modal-hero\.is-mobile-fullscreen\{height:100dvh;min-height:100dvh;max-height:none;aspect-ratio:auto\}/);
   assert.match(styles, /\.scope-sort-control\{[\s\S]*?cursor:pointer/);
   assert.match(styles, /\.scope-sort-picker\{position:relative;display:flex;align-items:center;min-width:0\}/);
