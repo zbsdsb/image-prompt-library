@@ -554,6 +554,8 @@ class ItemRepository:
         for has_filter in parsed_query.has:
             if has_filter == "image":
                 where.append("EXISTS (SELECT 1 FROM images img WHERE img.item_id=i.id)")
+            elif has_filter == "no_image":
+                where.append("NOT EXISTS (SELECT 1 FROM images img WHERE img.item_id=i.id)")
             elif has_filter == "result":
                 where.append("EXISTS (SELECT 1 FROM images img WHERE img.item_id=i.id AND img.role='result_image')")
             elif has_filter == "reference":
@@ -572,6 +574,10 @@ class ItemRepository:
                 params += [like, like, like, like, like]
         where_sql = "WHERE " + " AND ".join(where) if where else ""
         order = {"created_desc":"i.created_at DESC", "created_asc":"i.created_at ASC", "title_asc":"i.title COLLATE NOCASE ASC", "title_desc":"i.title COLLATE NOCASE DESC", "source_asc":"i.source_name COLLATE NOCASE ASC", "model_asc":"i.model COLLATE NOCASE ASC", "rating_desc":"i.rating DESC, i.updated_at DESC"}.get(sort, "i.updated_at DESC")
+        # Text-only entries (prompts imported without an image) sink below every card
+        # that has media, so opening the grid always shows something to look at.
+        # Applied as the primary key on purpose: it must hold for every sort mode.
+        order = f"CASE WHEN EXISTS (SELECT 1 FROM images img WHERE img.item_id=i.id) THEN 0 ELSE 1 END ASC, {order}"
         with connect(self.library_path) as conn:
             total = conn.execute(f"SELECT COUNT(DISTINCT i.id) FROM items i LEFT JOIN clusters c ON c.id=i.cluster_id {where_sql}", params).fetchone()[0]
             rows = conn.execute(f"""SELECT i.*, c.id cluster_id, c.name cluster_name, c.names cluster_names, c.description cluster_description, c.sort_order cluster_sort_order FROM items i LEFT JOIN clusters c ON c.id=i.cluster_id {where_sql} GROUP BY i.id ORDER BY {order} LIMIT ? OFFSET ?""", (*params, limit, offset)).fetchall()

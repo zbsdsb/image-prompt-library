@@ -289,6 +289,31 @@ def test_extended_item_sort_modes(tmp_path):
     assert [item["title"] for item in c.get("/api/items", params={"sort": "model_asc"}).json()["items"]] == ["Beta Sort", "Alpha Sort", "Gamma Sort"]
 
 
+def test_text_only_items_sink_below_items_with_images_in_every_sort_mode(tmp_path):
+    """Prompts imported without art must never lead the grid in any sort order."""
+    c = client(tmp_path)
+    with_image = c.post("/api/items", json=create_payload(title="Zulu With Art", source_url="https://example.test/with-art")).json()
+    text_only = c.post("/api/items", json=create_payload(title="Alpha Text Only", source_url="https://example.test/text-only")).json()
+    c.post(
+        f"/api/items/{with_image['id']}/images",
+        data={"role": "result_image"},
+        files={"file": ("result.png", png_bytes(), "image/png")},
+    )
+    with connect(tmp_path / "library") as conn:
+        # The text-only entry is the most recently updated and sorts first by title,
+        # so it would lead the grid if media presence were not the primary key.
+        conn.execute("UPDATE items SET updated_at=? WHERE id=?", ("2026-06-01T00:00:00+00:00", text_only["id"]))
+        conn.execute("UPDATE items SET updated_at=? WHERE id=?", ("2026-01-01T00:00:00+00:00", with_image["id"]))
+        conn.commit()
+
+    for sort in ("updated_desc", "title_asc", "created_desc", "rating_desc"):
+        titles = [item["title"] for item in c.get("/api/items", params={"sort": sort}).json()["items"]]
+        assert titles == ["Zulu With Art", "Alpha Text Only"], sort
+
+    assert c.get("/api/items", params={"q": "has:no_image"}).json()["total"] == 1
+    assert c.get("/api/items", params={"q": "has:image"}).json()["total"] == 1
+
+
 def test_items_list_limit_allows_gallery_overview_scale(tmp_path):
     c = client(tmp_path)
     for idx in range(230):
