@@ -116,8 +116,10 @@ button{color:inherit}
 .title-inline-edit input{font-size:inherit;line-height:inherit;letter-spacing:inherit;font-weight:900}
 .collection-inline-edit{display:inline-flex;width:max-content;max-width:100%;padding:6px 10px;color:var(--accent-strong);font-weight:900;text-transform:uppercase;letter-spacing:.08em;font-size:12px}
 /* The collection label belongs to the title, so pull it up against the heading
-   instead of inheriting the section-wide 12px rhythm. */
-.detail-side>.collection-inline-edit{margin-bottom:-6px}
+   instead of inheriting the section-wide 12px rhythm. -10px against the 12px
+   flex gap leaves a 2px optical seam, which the label's own 6px bottom padding
+   then reads as tight coupling rather than as a separate row. */
+.detail-side>.collection-inline-edit{margin-bottom:-10px}
 .metadata-inline-edit{display:inline-flex;align-items:center;padding:4px 6px}
 .inline-edit-controls{display:inline-flex;gap:5px;align-items:center}
 .inline-edit-confirm,.inline-edit-cancel{width:32px;height:30px;display:inline-grid;place-items:center;padding:0;border:1px solid var(--studio-hairline,#d8d1c3);border-radius:10px;background:var(--studio-surface,#fff);color:var(--studio-ink,var(--ink));cursor:pointer;transition:background .16s ease,border-color .16s ease,color .16s ease,box-shadow .16s ease}
@@ -1961,9 +1963,8 @@ body:has(.modal-backdrop),body:has(.drawer.open),body:has(.generation-queue-draw
   .mobile-generate-variant-label{display:inline}
   .detail-side-actions{display:none}
   .detail-side{overflow:visible;padding:16px 14px calc(32px + env(safe-area-inset-bottom, 0px))}
-  /* Push the title group away from the image toolbar above it, so "image +
-     actions" and "title + metadata" read as two distinct blocks. */
-  .detail-side>.collection-inline-edit:first-child{margin-top:8px}
+  /* The title group follows the image toolbar; the label-to-title pair inside it
+     is tightened in the base rules above. */
   .prompt-language-tabs.tabs{gap:6px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
   .prompt-language-tabs.tabs::-webkit-scrollbar{display:none}
   .prompt-language-tabs.tabs button{min-height:44px;padding:8px 12px;flex:0 0 auto;white-space:nowrap}
